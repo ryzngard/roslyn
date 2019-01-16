@@ -37,12 +37,16 @@
                    Content="{Binding ElementName=dialog, Path=NamespaceLabelText}"
                    Padding="{StaticResource ResourceKey=labelPadding}"
                    Target="{Binding ElementName=NamespaceTextBox}" />
-            <TextBox x:Uid="NamespaceTextBox"
+            <!--<TextBox x:Uid="NamespaceTextBox"
                      Name="NamespaceTextBox"
                      AutomationProperties.LabeledBy="{Binding ElementName=NamespaceLabel}"
                      Text="{Binding NamespaceName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                      Padding="{StaticResource ResourceKey=textboxPadding}"
-                     GotFocus="SelectAllInTextBox" />
+                     GotFocus="SelectAllInTextBox" />-->
+            <ContentPresenter 
+                x:Name="EditorContentPresenter"
+                Content="{Binding TextView, Mode=OneTime}"
+                PreviewKeyDown="EditorContentPresenter_PreviewKeyDown" />
         </StackPanel>
 
         <StackPanel Grid.Row="1" 

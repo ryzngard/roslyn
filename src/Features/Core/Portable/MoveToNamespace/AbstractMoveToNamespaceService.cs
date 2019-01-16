@@ -20,6 +20,8 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
         internal abstract Task<MoveToNamespaceAnalysisResult> AnalyzeTypeAtPositionAsync(Document document, int position, CancellationToken cancellationToken);
         public abstract Task<MoveToNamespaceResult> MoveToNamespaceAsync(MoveToNamespaceAnalysisResult analysisResult, string targetNamespace, CancellationToken cancellationToken);
         public abstract MoveToNamespaceOptionsResult GetOptions(Document document, string defaultNamespace, CancellationToken cancellationToken);
+
+        public abstract SyntaxNode FindNamespaceDeclaration(SyntaxNode root);
     }
 
     internal abstract class AbstractMoveToNamespaceService<TCompilationSyntax, TNamespaceDeclarationSyntax>
@@ -37,6 +39,11 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
             return typeAnalysisResult.CanPerform
                 ? ImmutableArray.Create(new MoveToNamespaceCodeAction(this, typeAnalysisResult))
                 : ImmutableArray<MoveToNamespaceCodeAction>.Empty;
+        }
+
+        public override SyntaxNode FindNamespaceDeclaration(SyntaxNode root)
+        {
+            return root.DescendantNodesAndSelf().First(n => n is TNamespaceDeclarationSyntax);
         }
 
         internal override async Task<MoveToNamespaceAnalysisResult> AnalyzeTypeAtPositionAsync(
@@ -108,12 +115,10 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
         {
             var syntaxFactsService = document.GetLanguageService<ISyntaxFactsService>();
             var notificationService = document.Project.Solution.Workspace.Services.GetService<INotificationService>();
-
             var service = document.Project.Solution.Workspace.Services.GetService<IMoveToNamespaceOptionsService>();
 
             return service.GetChangeNamespaceOptionsAsync(
-                syntaxFactsService,
-                notificationService,
+                document,
                 defaultNamespace,
                 cancellationToken).WaitAndGetResult(cancellationToken);
         }

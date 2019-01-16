@@ -1,9 +1,14 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
+using System;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.PlatformUI;
+using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.Text.Projection;
 
 namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
 {
@@ -28,14 +33,6 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
             DataContext = viewModel;
         }
 
-        private void SelectAllInTextBox(object sender, RoutedEventArgs e)
-        {
-            if (e.OriginalSource is TextBox textbox && Mouse.LeftButton == MouseButtonState.Released)
-            {
-                textbox.SelectAll();
-            }
-        }
-
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = false;
@@ -44,6 +41,11 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
         private void OK_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = true;
+        }
+
+        private void EditorContentPresenter_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            _viewModel.OnPreviewKeyDown(e);
         }
     }
 }

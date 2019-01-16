@@ -14,8 +14,7 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
     internal interface IMoveToNamespaceOptionsService : IWorkspaceService
     {
         Task<MoveToNamespaceOptionsResult> GetChangeNamespaceOptionsAsync(
-            ISyntaxFactsService syntaxFactsService,
-            INotificationService notificationService,
+            Document document,
             string defaultNamespace,
             CancellationToken cancellationToken);
     }
