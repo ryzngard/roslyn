@@ -45,7 +45,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
 
         private void EditorContentPresenter_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            _viewModel.OnPreviewKeyDown(e);
+            _viewModel.OnPreviewKeyDown(sender, e);
         }
     }
 }

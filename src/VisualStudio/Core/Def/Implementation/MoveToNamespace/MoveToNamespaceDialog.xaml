@@ -43,9 +43,11 @@
                      Text="{Binding NamespaceName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                      Padding="{StaticResource ResourceKey=textboxPadding}"
                      GotFocus="SelectAllInTextBox" />-->
+
             <ContentPresenter 
                 x:Name="EditorContentPresenter"
-                Content="{Binding TextView, Mode=OneTime}"
+                Content="{Binding EditorControl, Mode=OneTime}"
+                MinHeight="100"
                 PreviewKeyDown="EditorContentPresenter_PreviewKeyDown" />
         </StackPanel>
 
