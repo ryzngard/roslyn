@@ -43,11 +43,8 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
                 string text = currentLine.GetText().Trim();
                 if (text.StartsWith("namespace", StringComparison.Ordinal))
                 {
-                    var namespaceLine = snapshot.GetLineFromLineNumber(i + 1);
-                    int offset = namespaceLine.GetText().IndexOf("namespace", StringComparison.Ordinal) + "namespace ".Length;
-                    start = namespaceLine.Start + offset;
-
-                    return new SnapshotSpan(start, namespaceLine.Length - offset);
+                    int offset = "namespace ".Length;
+                    return new SnapshotSpan(currentLine.Start + offset, text.Length - offset);
                 }
             }
 

@@ -1,15 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel.Design;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Microsoft.VisualStudio.Editor;
+using Microsoft.VisualStudio.LanguageServices.Implementation.Utilities;
 using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
@@ -19,11 +17,9 @@ using Microsoft.VisualStudio.TextManager.Interop;
 
 namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
 {
-    class MoveToNamespaceEditorControl : FrameworkElement, IOleCommandTarget
+    class MoveToNamespaceEditorControl : ContentControl, IOleCommandTarget
     {
         private readonly IEditorOperationsFactoryService _editorOperationsFactoryService;
-        private readonly IVsEditorAdaptersFactoryService _editorAdaptersFactoryService;
-        private readonly OLE.Interop.IServiceProvider _oleServiceProvider;
         private IEditorOperations _editorOperations;
         private IOleCommandTarget _nextCommandTarget;
 
@@ -49,15 +45,11 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
         public MoveToNamespaceEditorControl(
             IVsTextView textView,
             IWpfTextViewHost textViewHost,
-            IEditorOperationsFactoryService editorOperationsFactoryService,
-            IVsEditorAdaptersFactoryService editorFactoryService,
-            OLE.Interop.IServiceProvider serviceProvider)
+            IEditorOperationsFactoryService editorOperationsFactoryService)
         {
             TextView = textView;
             TextViewHost = textViewHost;
             _editorOperationsFactoryService = editorOperationsFactoryService;
-            _editorAdaptersFactoryService = editorFactoryService;
-            _oleServiceProvider = serviceProvider;
 
             InstallCommandFilter();
             InitializeEditorControl();
@@ -65,8 +57,8 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
 
         private void InitializeEditorControl()
         {
-            AddLogicalChild(this.TextViewHost.HostControl);
-            AddVisualChild(this.TextViewHost.HostControl);
+            AddLogicalChild(TextViewHost.HostControl);
+            AddVisualChild(TextViewHost.HostControl);
         }
 
         private void InstallCommandFilter()
@@ -75,13 +67,6 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
             {
                 _editorOperations = _editorOperationsFactoryService.GetEditorOperations(this.TextViewHost.TextView);
             }
-
-            //if (this.adornedTextBlock.CompletionHandlerProvider != null)
-            //{
-            //    string initialContent = this.adornedTextBlock.UserInputOnStartEditing == null ? this.adornedTextBlock.DefaultTextOnStartEditing : this.adornedTextBlock.UserInputOnStartEditing;
-
-            //    this.adornedTextBlock.CompletionHandlerProvider.CreateIntellisenseCompletionHandler(this.ViewAdapter, this.wpfTextView, string.IsNullOrEmpty(initialContent));
-            //}
 
             ErrorHandler.ThrowOnFailure(this.TextView.AddCommandFilter(this, out this._nextCommandTarget));
         }
@@ -105,32 +90,13 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
             this.TextViewHost.TextView.VisualElement.Focus();
         }
 
-        private static DependencyObject TryGetParent(DependencyObject obj)
-        {
-            return (obj is Visual) ? VisualTreeHelper.GetParent(obj) : null;
-        }
-
-        private static T GetParentOfType<T>(DependencyObject element) where T : Visual
-        {
-            var parent = TryGetParent(element);
-            if (parent is T)
-            {
-                return (T)parent;
-            }
-            if (parent == null)
-            {
-                return null;
-            }
-            return GetParentOfType<T>(parent);
-        }
-
         internal static void HandleKeyDown(object sender, KeyEventArgs e)
         {
             var elementWithFocus = Keyboard.FocusedElement as UIElement;
 
             if (elementWithFocus is IWpfTextView)
             {
-                var moveToNamespaceEditorControl = GetParentOfType<MoveToNamespaceEditorControl>(elementWithFocus);
+                var moveToNamespaceEditorControl = elementWithFocus.GetParentOfType<MoveToNamespaceEditorControl>();
 
                 if (moveToNamespaceEditorControl != null && moveToNamespaceEditorControl.TextView != null)
                 {

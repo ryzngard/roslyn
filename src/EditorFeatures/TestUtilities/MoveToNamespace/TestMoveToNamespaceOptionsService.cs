@@ -25,7 +25,7 @@ namespace Microsoft.CodeAnalysis.Test.Utilities.MoveToNamespace
         {
         }
 
-        public Task<MoveToNamespaceOptionsResult> GetChangeNamespaceOptionsAsync(ISyntaxFactsService syntaxFactsService, INotificationService notificationService, string defaultNamespace, CancellationToken cancellationToken)
+        public Task<MoveToNamespaceOptionsResult> GetChangeNamespaceOptionsAsync(Document document, string defaultNamespace, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

@@ -47,7 +47,6 @@
             <ContentPresenter 
                 x:Name="EditorContentPresenter"
                 Content="{Binding EditorControl, Mode=OneTime}"
-                MinHeight="100"
                 PreviewKeyDown="EditorContentPresenter_PreviewKeyDown" />
         </StackPanel>
 

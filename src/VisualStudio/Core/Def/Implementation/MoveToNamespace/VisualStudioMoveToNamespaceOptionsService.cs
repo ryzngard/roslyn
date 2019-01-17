@@ -6,61 +6,45 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Editor;
-using Microsoft.CodeAnalysis.Editor.Options;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.MoveToNamespace;
-using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.VisualStudio.Editor;
-using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
-using Microsoft.VisualStudio.Text.Editor.Commanding;
 using Microsoft.VisualStudio.Text.Operations;
-using Microsoft.VisualStudio.Text.Projection;
 using Microsoft.VisualStudio.TextManager.Interop;
 using Microsoft.VisualStudio.Utilities;
 
 namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
 {
     [ExportWorkspaceService(typeof(IMoveToNamespaceOptionsService), ServiceLayer.Host), Shared]
-    internal class VisualStudioMoveToNamespaceOptionsService : IMoveToNamespaceOptionsService
+    internal partial class VisualStudioMoveToNamespaceOptionsService : IMoveToNamespaceOptionsService
     {
         public const string MoveToNamespaceTextViewRole = "MoveToNamespace";
 
         private readonly IThreadingContext _threadingContext;
-        private readonly IProjectionBufferFactoryService _projectionBufferFactoryService;
         private readonly ITextEditorFactoryService _textEditorFactoryService;
-        private readonly ITextBufferFactoryService _textBufferFactoryService;
         private readonly IContentType _contentType;
-        private readonly IEditorCommandHandlerServiceFactory _editorCommandHandlerServiceFactory;
         private readonly IVsEditorAdaptersFactoryService _vsEditorAdaptersFactoryService;
-        private readonly Microsoft.VisualStudio.OLE.Interop.IServiceProvider _serviceProvider;
+        private readonly OLE.Interop.IServiceProvider _serviceProvider;
         private readonly IEditorOperationsFactoryService _editorOperationsFactoryService;
 
         [ImportingConstructor]
         [Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
         public VisualStudioMoveToNamespaceOptionsService(
-            IGlyphService glyphService,
             IThreadingContext threadingContext,
-            IProjectionBufferFactoryService projectionBufferFactoryService,
             ITextEditorFactoryService textEditorFactoryService,
-            ITextBufferFactoryService textBufferFactoryService,
             IContentTypeRegistryService contentTypeRegistryService,
-            IEditorCommandHandlerServiceFactory editorCommandHandlerServiceFactory,
             IVsEditorAdaptersFactoryService editorAdaptersFactoryService,
             IEditorOperationsFactoryService editorOperationsFactoryService,
             [Import(typeof(SVsServiceProvider))] IServiceProvider serviceProvider
             )
         {
             _threadingContext = threadingContext;
-            _projectionBufferFactoryService = projectionBufferFactoryService;
             _textEditorFactoryService = textEditorFactoryService;
-            _textBufferFactoryService = textBufferFactoryService;
             _contentType = contentTypeRegistryService.GetContentType(ContentTypeNames.CSharpContentType);
-            _editorCommandHandlerServiceFactory = editorCommandHandlerServiceFactory;
             _vsEditorAdaptersFactoryService = editorAdaptersFactoryService;
             _editorOperationsFactoryService = editorOperationsFactoryService;
             _serviceProvider = (OLE.Interop.IServiceProvider)serviceProvider.GetService(typeof(OLE.Interop.IServiceProvider));
@@ -74,16 +58,14 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
             await _threadingContext.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
-            var workspace = new MoveToNamespaceWorkspace(document.Project, defaultNamespace);
+            var workspace = new CSharpMoveToNamespaceWorkspace(document.Project, defaultNamespace);
 
             var (textView, textViewHost) = await GetTextViewAsync(workspace, cancellationToken).ConfigureAwait(false);
 
             var editorControl = new MoveToNamespaceEditorControl(
                 textView,
                 textViewHost,
-                _editorOperationsFactoryService,
-                _vsEditorAdaptersFactoryService,
-                _serviceProvider);
+                _editorOperationsFactoryService);
 
             var viewModel = new MoveToNamespaceDialogViewModel(
                 editorControl,
@@ -102,22 +84,17 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
             }
         }
 
-        private async Task<(ITextBuffer, Span)> GetDocumentTextBufferAsync(MoveToNamespaceWorkspace workspace, CancellationToken cancellationToken)
+        private async Task<string> GetDocumentTextAsync(CSharpMoveToNamespaceWorkspace workspace, CancellationToken cancellationToken)
         {
-            var moveToNamespaceService = workspace.NamespaceDocument.GetLanguageService<AbstractMoveToNamespaceService>();
-            var namespaceDeclaration = moveToNamespaceService.FindNamespaceDeclaration(await workspace.NamespaceDocument.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false));
+            var syntaxTree = await workspace.NamespaceDocument.GetSyntaxTreeAsync(cancellationToken).ConfigureAwait(false);
+            var sourceText = await syntaxTree.GetTextAsync(cancellationToken).ConfigureAwait(false);
 
-            var buffer = _textBufferFactoryService.CreateTextBuffer(
-                namespaceDeclaration.GetText().ToString(),
-                _contentType);
-
-            return (buffer, new Span(namespaceDeclaration.Span.Start, namespaceDeclaration.Span.Length));
+            return sourceText.ToString();
         }
 
-        private async Task<(IVsTextView, IWpfTextViewHost)> GetTextViewAsync(MoveToNamespaceWorkspace workspace, CancellationToken cancellationToken)
+        private async Task<(IVsTextView, IWpfTextViewHost)> GetTextViewAsync(CSharpMoveToNamespaceWorkspace workspace, CancellationToken cancellationToken)
         {
-            var (buffer, namespaceSpan) = await GetDocumentTextBufferAsync(workspace, cancellationToken).ConfigureAwait(false);
-            var textContainer = buffer.AsTextContainer();
+            var documentText = await GetDocumentTextAsync(workspace, cancellationToken).ConfigureAwait(false);
 
             var roleSet = _textEditorFactoryService.CreateTextViewRoleSet(
                 PredefinedTextViewRoles.Document,
@@ -127,7 +104,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
 
             var textViewAdapter = _vsEditorAdaptersFactoryService.CreateVsTextViewAdapter(_serviceProvider, roleSet);
             var bufferAdapter = _vsEditorAdaptersFactoryService.CreateVsTextBufferAdapter(_serviceProvider, _contentType);
-            bufferAdapter.InitializeContent(textContainer.CurrentText.ToString(), textContainer.CurrentText.Length);
+            bufferAdapter.InitializeContent(documentText, documentText.Length);
 
             var textBuffer = _vsEditorAdaptersFactoryService.GetDataBuffer(bufferAdapter);
             workspace.OnDocumentOpened(workspace.NamespaceDocument.Id, textBuffer.AsTextContainer());
@@ -152,41 +129,6 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
 
 
             return (textViewAdapter, textViewHost);
-        }
-
-        internal class MoveToNamespaceWorkspace : Workspace
-        {
-            private readonly string _originalNamespace;
-
-            public MoveToNamespaceWorkspace(Project project, string @namespace)
-                : base(project.Solution.Workspace.Services.HostServices, nameof(MoveToNamespaceWorkspace))
-            {
-                var solution = project.Solution;
-                _originalNamespace = @namespace;
-
-                // The solution we are handed is still parented by the original workspace. We want to
-                // inherit it's "no partial solutions" flag so that way this workspace will also act
-                // deterministically if we're in unit tests
-                this.TestHookPartialSolutionsDisabled = solution.Workspace.TestHookPartialSolutionsDisabled;
-
-                // Create a new document to hold the temporary code
-                NamespaceDocumentId = DocumentId.CreateNewId(project.Id);
-                this.SetCurrentSolution(solution.AddDocument(NamespaceDocumentId, "namespace_tmp.cs", GetDocumentText()));
-
-                Options = Options.WithChangedOption(EditorCompletionOptions.UseSuggestionMode, true);
-            }
-
-            private string GetDocumentText()
-            {
-                return $@"
-namespace {_originalNamespace}
-{{
-}}
-";
-            }
-
-            public Document NamespaceDocument => this.CurrentSolution.GetDocument(this.NamespaceDocumentId);
-            public DocumentId NamespaceDocumentId { get; }
         }
     }
 }
