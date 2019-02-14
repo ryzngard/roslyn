@@ -13,7 +13,7 @@ using Microsoft.VisualStudio.Language.Intellisense;
 
 namespace Microsoft.VisualStudio.LanguageServices.Implementation.MoveToNamespace
 {
-    [Export(typeof(IMoveToNamespaceOptionsService)), Shared]
+    [ExportWorkspaceService(typeof(IMoveToNamespaceOptionsService), ServiceLayer.Host), Shared]
     internal class VisualStudioMoveToNamespaceOptionsService : IMoveToNamespaceOptionsService
     {
         private readonly IGlyphService _glyphService;

@@ -25,14 +25,7 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
     internal abstract class AbstractMoveToNamespaceService<TCompilationSyntax, TNamespaceDeclarationSyntax>
         : AbstractMoveToNamespaceService
     {
-        private IMoveToNamespaceOptionsService _moveToNamespaceOptionsService;
-
         protected abstract string GetNamespaceName(TNamespaceDeclarationSyntax syntax);
-
-        public AbstractMoveToNamespaceService(IMoveToNamespaceOptionsService moveToNamespaceOptionsService)
-        {
-            _moveToNamespaceOptionsService = moveToNamespaceOptionsService;
-        }
 
         internal override async Task<ImmutableArray<MoveToNamespaceCodeAction>> GetCodeActionsAsync(
             Document document,
@@ -116,7 +109,9 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
             var syntaxFactsService = document.GetLanguageService<ISyntaxFactsService>();
             var notificationService = document.Project.Solution.Workspace.Services.GetService<INotificationService>();
 
-            return _moveToNamespaceOptionsService.GetChangeNamespaceOptionsAsync(
+            var service = document.Project.Solution.Workspace.Services.GetService<IMoveToNamespaceOptionsService>();
+
+            return service.GetChangeNamespaceOptionsAsync(
                 syntaxFactsService,
                 notificationService,
                 defaultNamespace,
