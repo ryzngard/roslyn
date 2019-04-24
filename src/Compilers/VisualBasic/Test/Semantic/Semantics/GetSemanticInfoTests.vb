@@ -1298,6 +1298,28 @@ x = x               'BIND1:"x"
         End Sub
 
         <Fact()>
+        Public Sub CompilerTest21662()
+            Dim compilation = CompilationUtils.CreateCompilation(
+    <compilation name="CompilerTest21662">
+        <file name="a.vb">
+Imports System
+Module Module1
+    Sub Main()
+        Dim product = (id:=1, [DateTime]:=DateTime.Now.ToString())
+    End Sub
+End Module
+        </file>
+    </compilation>, parseOptions:=TestOptions.Script)
+
+            Dim model = GetSemanticModel(compilation, "a.vb")
+            Dim tree = compilation.SyntaxTrees(0)
+
+            Dim node = FindNodeFromText(tree, "[DateTime]")
+            Dim dateTimeNameInfo = model.GetSymbolInfo(node)
+            Assert.Null(dateTimeNameInfo.Symbol)
+        End Sub
+
+        <Fact()>
         Public Sub BindingModuleMemberInQualifiedExpressionWithGlobal()
             Dim compilation = CompilationUtils.CreateCompilationWithMscorlib40(
     <compilation name="BindingEnumMembers">

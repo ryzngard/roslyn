@@ -2561,5 +2561,23 @@ Module Module1
 End Module",
                 options:=PreferIntrinsicTypeInMemberAccess())
         End Function
+
+        <WorkItem(15996, "https://github.com/dotnet/roslyn/issues/15996")>
+        <Fact(), Trait(Traits.Feature, Traits.Features.CodeActionsSimplifyTypeNames)>
+        Public Async Function TestMemberOfBuiltInType32() As Task
+            Await TestInRegularAndScriptAsync(
+"Imports System
+Module Module1
+    Sub Main()
+        Dim product = (id:=1, [[|DateTime|]]:=DateTime.Now.ToString())
+    End Sub
+End Module",
+"Imports System
+Module Module1
+    Sub Main()
+        Dim product = (id:=1, [DateTime]:=DateTime.Now.ToString())
+    End Sub
+End Module")
+        End Function
     End Class
 End Namespace
