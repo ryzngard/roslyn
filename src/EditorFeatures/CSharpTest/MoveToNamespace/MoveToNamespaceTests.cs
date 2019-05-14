@@ -1196,5 +1196,40 @@ expectedSymbolChanges: new Dictionary<string, string>()
     {"One.IService", "Two.IService" },
     {"One.Service", "Two.Service" }
 });
+
+        [WpfFact, Trait(Traits.Feature, Traits.Features.MoveToNamespace)]
+        public Task MoveToNamespace_MoveMultiple5()
+        => TestMoveToNamespaceAsync(
+@"namespace One
+{
+    class A { }
+    
+    interface IService { [|}
+
+    class Service : IService 
+    { 
+        void DoStuff() {|] }
+    }
+}",
+expectedMarkup: @"namespace One
+{
+    class A { }
+}
+
+namespace {|Warning:Two|}
+{
+    interface IService { }
+
+    class Service : IService
+    {
+        void DoStuff() { }
+    }
+}",
+targetNamespace: "Two",
+expectedSymbolChanges: new Dictionary<string, string>()
+{
+    {"One.IService", "Two.IService" },
+    {"One.Service", "Two.Service" }
+});
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿using System;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,15 +39,34 @@ namespace Microsoft.CodeAnalysis
                     .ChildNodes()
                     .Where(n => n.Span.IntersectsWith(selection))
                     .ToImmutableArray();
+            }
 
-                IsSelectionExactOnContext = context.FullSpan.OverlapsWith(selection);
+            internal SelectionAnalysisResult(
+                Document document,
+                TextSpan selection,
+                SyntaxNode context,
+                ImmutableArray<SyntaxNode> intersectedNodes)
+            {
+                Document = document;
+                Selection = selection;
+                Context = context;
+                IntersectedNodes = intersectedNodes;
             }
 
             public Document Document { get; }
             public TextSpan Selection { get; }
             public SyntaxNode Context { get; }
             public ImmutableArray<SyntaxNode> IntersectedNodes { get; }
-            public bool IsSelectionExactOnContext { get; }
+            public bool IsSelectionExactOnContext => Context.FullSpan.OverlapsWith(Selection);
+
+            internal SelectionAnalysisResult WithContext(SyntaxNode newContext)
+            {
+                return new SelectionAnalysisResult(
+                    Document,
+                    Selection,
+                    newContext,
+                    IntersectedNodes);
+            }
         }
     }
 }
