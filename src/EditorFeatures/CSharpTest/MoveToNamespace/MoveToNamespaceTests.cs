@@ -1097,7 +1097,7 @@ expectedMarkup: @"namespace One
     class A { }
 }
 
-namespace Two
+namespace {|Warning:Two|}
 {
     interface IService { }
 

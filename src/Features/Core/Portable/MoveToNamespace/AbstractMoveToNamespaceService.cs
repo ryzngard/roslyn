@@ -234,21 +234,23 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
 
                 modifiedDocument = editor.GetChangedDocument();
 
-                var syntaxTree = await modifiedDocument.GetSyntaxTreeAsync(cancellationToken).ConfigureAwait(false);
-                var newRoot = await syntaxTree.GetRootAsync(cancellationToken).ConfigureAwait(false);
+                var newRoot = await modifiedDocument.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
                 namespaceNode = newRoot.GetCurrentNode(namespaceNode);
-
-                var semanticModel = await modifiedDocument.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
                 namespaceContainer = newRoot.GetCurrentNode(namespaceContainer);
 
-                var namespaceContainerSymbol = (INamespaceSymbol)semanticModel.GetDeclaredSymbol(namespaceContainer, cancellationToken);
-
-                var namespaceMembers = namespaceContainerSymbol.GetMembers();
                 // Remove an empty namespace declaration
                 if (!namespaceContainer.ChildNodes().OfType<TNamedTypeDeclarationSyntax>().Any())
                 {
+                    editor = await DocumentEditor.CreateAsync(modifiedDocument, cancellationToken).ConfigureAwait(false);
+                    editor.TrackNode(namespaceNode);
+
                     editor.RemoveNode(namespaceContainer);
+
+                    modifiedDocument = editor.GetChangedDocument();
+
+                    newRoot = await modifiedDocument.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
+                    namespaceNode = newRoot.GetCurrentNode(namespaceNode);
                 }
             }
 
