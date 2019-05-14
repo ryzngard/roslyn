@@ -14,13 +14,14 @@ using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.LanguageServices;
 using System.Text;
 using System.Diagnostics;
+using Microsoft.CodeAnalysis.Editing;
 
 namespace Microsoft.CodeAnalysis.MoveToNamespace
 {
     internal interface IMoveToNamespaceService : ILanguageService
     {
         Task<ImmutableArray<AbstractMoveToNamespaceCodeAction>> GetCodeActionsAsync(Document document, TextSpan span, CancellationToken cancellationToken);
-        Task<MoveToNamespaceAnalysisResult> AnalyzeTypeAtPositionAsync(Document document, int position, CancellationToken cancellationToken);
+        Task<MoveToNamespaceAnalysisResult> AnalyzeTypeAtSelectionAsync(Document document, TextSpan selection, CancellationToken cancellationToken);
         Task<MoveToNamespaceResult> MoveToNamespaceAsync(MoveToNamespaceAnalysisResult analysisResult, string targetNamespace, CancellationToken cancellationToken);
         MoveToNamespaceOptionsResult GetChangeNamespaceOptions(Document document, string defaultNamespace, ImmutableArray<string> namespaces);
     }
@@ -33,14 +34,14 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
     {
         protected abstract string GetNamespaceName(TNamespaceDeclarationSyntax namespaceSyntax);
         protected abstract string GetNamespaceName(TNamedTypeDeclarationSyntax namedTypeSyntax);
-        protected abstract bool IsContainedInNamespaceDeclaration(TNamespaceDeclarationSyntax namespaceSyntax, int position);
+        protected abstract bool IsContainedInNamespaceDeclaration(TNamespaceDeclarationSyntax namespaceSyntax, TextSpan span);
 
         public async Task<ImmutableArray<AbstractMoveToNamespaceCodeAction>> GetCodeActionsAsync(
             Document document,
             TextSpan span,
             CancellationToken cancellationToken)
         {
-            var typeAnalysisResult = await AnalyzeTypeAtPositionAsync(document, span.Start, cancellationToken).ConfigureAwait(false);
+            var typeAnalysisResult = await AnalyzeTypeAtSelectionAsync(document, span, cancellationToken).ConfigureAwait(false);
 
             if (typeAnalysisResult.CanPerform)
             {
@@ -50,51 +51,68 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
             return ImmutableArray<AbstractMoveToNamespaceCodeAction>.Empty;
         }
 
-        public async Task<MoveToNamespaceAnalysisResult> AnalyzeTypeAtPositionAsync(
+        public async Task<MoveToNamespaceAnalysisResult> AnalyzeTypeAtSelectionAsync(
             Document document,
-            int position,
+            TextSpan span,
             CancellationToken cancellationToken)
         {
-            var root = await document.GetSyntaxRootAsync().ConfigureAwait(false);
+            var analysis = await SelectionAnalyzer.AnalyzeAsync(document, span, cancellationToken).ConfigureAwait(false);
 
-            var token = root.FindToken(position);
-            var node = token.Parent;
-
-            var moveToNamespaceAnalysisResult = await TryAnalyzeNamespaceAsync(document, node, position, cancellationToken).ConfigureAwait(false);
-
-            if (moveToNamespaceAnalysisResult != null)
+            var analysisResult = analysis.Context switch
             {
-                return moveToNamespaceAnalysisResult;
-            }
+                TNamespaceDeclarationSyntax namespaceDecl => await TryAnalyzeNamespaceAsync(document, analysis, cancellationToken).ConfigureAwait(false),
+                TNamedTypeDeclarationSyntax namedTypeDecl => await TryAnalyzeNamedTypeAsync(document, analysis, cancellationToken).ConfigureAwait(false),
+                _ => MoveToNamespaceAnalysisResult.Invalid
+            };
 
-            moveToNamespaceAnalysisResult = await TryAnalyzeNamedTypeAsync(document, node, cancellationToken).ConfigureAwait(false);
-            return moveToNamespaceAnalysisResult ?? MoveToNamespaceAnalysisResult.Invalid;
+            return analysisResult;
         }
 
         private async Task<MoveToNamespaceAnalysisResult> TryAnalyzeNamespaceAsync(
-            Document document, SyntaxNode node, int position, CancellationToken cancellationToken)
+            Document document, SelectionAnalyzer.SelectionAnalysisResult analysis, CancellationToken cancellationToken)
         {
-            var declarationSyntax = node.FirstAncestorOrSelf<TNamespaceDeclarationSyntax>();
-            if (declarationSyntax == default || !IsContainedInNamespaceDeclaration(declarationSyntax, position))
+            var declarationSyntax = analysis.Context.FirstAncestorOrSelf<TNamespaceDeclarationSyntax>();
+            if (declarationSyntax == default)
             {
-                return null;
+                return MoveToNamespaceAnalysisResult.Invalid;
+            }
+
+            if (analysis.Selection.IsEmpty && !IsContainedInNamespaceDeclaration(declarationSyntax, analysis.Selection))
+            {
+                return MoveToNamespaceAnalysisResult.Invalid;
             }
 
             if (ContainsNamespaceDeclaration(declarationSyntax) || ContainsMultipleNamespaceInSpine(declarationSyntax))
             {
                 return MoveToNamespaceAnalysisResult.Invalid;
             }
-            else
+
+            var allChildrenSelected = !analysis.Context.ChildNodes().Except(analysis.IntersectedNodes).Any();
+
+            if (declarationSyntax == analysis.Context && analysis.IsSelectionExactOnContext && allChildrenSelected)
             {
                 var namespaceName = GetNamespaceName(declarationSyntax);
                 var namespaces = await GetNamespacesAsync(document, cancellationToken).ConfigureAwait(false);
-                return new MoveToNamespaceAnalysisResult(document, declarationSyntax, namespaceName, namespaces.ToImmutableArray(), MoveToNamespaceAnalysisResult.ContainerType.Namespace);
+                return new MoveToNamespaceAnalysisResult(analysis, namespaceName, namespaces.ToImmutableArray(), MoveToNamespaceAnalysisResult.ContainerType.Namespace);
             }
+
+            var intersectedTypeNodes = analysis.IntersectedNodes.OfType<TNamedTypeDeclarationSyntax>().ToImmutableArray();
+            if (analysis.Context is TNamespaceDeclarationSyntax namespaceDeclarationSyntax && intersectedTypeNodes.Any())
+            {
+                var namespaceName = GetNamespaceName(namespaceDeclarationSyntax);
+                var namespaces = await GetNamespacesAsync(document, cancellationToken).ConfigureAwait(false);
+                return new MoveToNamespaceAnalysisResult(analysis, namespaceName, namespaces.ToImmutableArray(), MoveToNamespaceAnalysisResult.ContainerType.MultipleNamedTypes);
+            }
+
+            return MoveToNamespaceAnalysisResult.Invalid;
+
         }
 
         private async Task<MoveToNamespaceAnalysisResult> TryAnalyzeNamedTypeAsync(
-            Document document, SyntaxNode node, CancellationToken cancellationToken)
+            Document document, SelectionAnalyzer.SelectionAnalysisResult analysis, CancellationToken cancellationToken)
         {
+            var node = analysis.Context;
+
             // Multiple nested namespaces are currently not supported
             if (ContainsMultipleNamespaceInSpine(node) || ContainsMultipleTypesInSpine(node))
             {
@@ -105,7 +123,7 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
             {
                 var namespaceName = GetNamespaceName(namedTypeDeclarationSyntax);
                 var namespaces = await GetNamespacesAsync(document, cancellationToken).ConfigureAwait(false);
-                return new MoveToNamespaceAnalysisResult(document, namedTypeDeclarationSyntax, namespaceName, namespaces.ToImmutableArray(), MoveToNamespaceAnalysisResult.ContainerType.NamedType);
+                return new MoveToNamespaceAnalysisResult(analysis, namespaceName, namespaces.ToImmutableArray(), MoveToNamespaceAnalysisResult.ContainerType.NamedType);
             }
 
             return null;
@@ -133,9 +151,11 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
             switch (analysisResult.Container)
             {
                 case MoveToNamespaceAnalysisResult.ContainerType.Namespace:
-                    return MoveItemsInNamespaceAsync(analysisResult.Document, analysisResult.SyntaxNode, targetNamespace, cancellationToken);
+                    return MoveItemsInNamespaceAsync(analysisResult.SelectionAnalysis.Document, (TNamespaceDeclarationSyntax)analysisResult.SelectionAnalysis.Context, targetNamespace, cancellationToken);
                 case MoveToNamespaceAnalysisResult.ContainerType.NamedType:
-                    return MoveTypeToNamespaceAsync(analysisResult.Document, analysisResult.SyntaxNode, targetNamespace, cancellationToken);
+                    return MoveTypeToNamespaceAsync(analysisResult.SelectionAnalysis, targetNamespace, cancellationToken);
+                case MoveToNamespaceAnalysisResult.ContainerType.MultipleNamedTypes:
+                    return MoveMultipleTypesToNamespaceAsync(analysisResult.SelectionAnalysis, targetNamespace, cancellationToken);
                 default:
                     throw new InvalidOperationException();
             }
@@ -143,12 +163,12 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
 
         private static async Task<MoveToNamespaceResult> MoveItemsInNamespaceAsync(
             Document document,
-            SyntaxNode container,
+            TNamespaceDeclarationSyntax namespaceDecl,
             string targetNamespace,
             CancellationToken cancellationToken)
         {
             var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
-            var containerSymbol = (INamespaceSymbol)semanticModel.GetDeclaredSymbol(container);
+            var containerSymbol = (INamespaceSymbol)semanticModel.GetDeclaredSymbol(namespaceDecl);
             var members = containerSymbol.GetMembers();
             var newNameOriginalSymbolMapping = members
                 .ToImmutableDictionary(symbol => GetNewSymbolName(symbol, targetNamespace), symbol => (ISymbol)symbol);
@@ -160,27 +180,111 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
             }
 
             var originalSolution = document.Project.Solution;
-            var typeDeclarationsInContainer = container.DescendantNodes(syntaxNode => syntaxNode is TNamedTypeDeclarationSyntax).ToImmutableArray();
+            var typeDeclarationsInContainer = namespaceDecl.DescendantNodes(syntaxNode => syntaxNode is TNamedTypeDeclarationSyntax).ToImmutableArray();
 
             var changedSolution = await changeNamespaceService.ChangeNamespaceAsync(
                 document,
-                container,
+                namespaceDecl,
                 targetNamespace,
                 cancellationToken).ConfigureAwait(false);
 
             return new MoveToNamespaceResult(originalSolution, changedSolution, document.Id, newNameOriginalSymbolMapping);
         }
 
-        private static async Task<MoveToNamespaceResult> MoveTypeToNamespaceAsync(
-            Document document,
-            SyntaxNode container,
+        private static async Task<MoveToNamespaceResult> MoveMultipleTypesToNamespaceAsync(
+            SelectionAnalyzer.SelectionAnalysisResult selectionAnalysis,
             string targetNamespace,
             CancellationToken cancellationToken)
+        {
+            var intersectionAnnotation = new SyntaxAnnotation();
+
+            // Mark all of the nodes, except the first, so they can be tracked across all of the edits.
+            // First is ignored because it's already moved to the right place
+            var annotationEditor = await DocumentEditor.CreateAsync(selectionAnalysis.Document, cancellationToken).ConfigureAwait(false);
+            foreach (var node in selectionAnalysis.IntersectedNodes.Skip(1))
+            {
+                annotationEditor.ReplaceNode(node, node.WithAdditionalAnnotations(intersectionAnnotation));
+            }
+
+            var (modifiedDocument, namespaceNode) = await SplitNodeIntoOwnNamespace(annotationEditor.GetChangedDocument(), selectionAnalysis.IntersectedNodes.First(), cancellationToken).ConfigureAwait(false);
+
+            if (modifiedDocument == null || namespaceNode == null)
+            {
+                return MoveToNamespaceResult.Failed;
+            }
+
+            // Add the remaining nodes into the new namespace
+            var editor = await DocumentEditor.CreateAsync(modifiedDocument, cancellationToken).ConfigureAwait(false);
+            editor.TrackNode(namespaceNode);
+
+            var syntaxRoot = editor.OriginalRoot;
+            var annotatedNodes = syntaxRoot.GetAnnotatedNodes(intersectionAnnotation);
+
+            if (annotatedNodes.Any())
+            {
+                var namespaceContainer = annotatedNodes.First().FirstAncestorOrSelf<TNamespaceDeclarationSyntax>();
+
+                editor.TrackNode(namespaceContainer);
+
+                foreach (var node in annotatedNodes)
+                {
+                    editor.RemoveNode(node, SyntaxRemoveOptions.KeepNoTrivia);
+                    editor.AddMember(namespaceNode, node);
+                }
+
+                modifiedDocument = editor.GetChangedDocument();
+
+                var syntaxTree = await modifiedDocument.GetSyntaxTreeAsync(cancellationToken).ConfigureAwait(false);
+                var newRoot = await syntaxTree.GetRootAsync(cancellationToken).ConfigureAwait(false);
+
+                namespaceNode = newRoot.GetCurrentNode(namespaceNode);
+
+                var semanticModel = await modifiedDocument.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+                namespaceContainer = newRoot.GetCurrentNode(namespaceContainer);
+
+                var namespaceContainerSymbol = (INamespaceSymbol)semanticModel.GetDeclaredSymbol(namespaceContainer, cancellationToken);
+
+                var namespaceMembers = namespaceContainerSymbol.GetMembers();
+                // Remove an empty namespace declaration
+                if (!namespaceContainer.ChildNodes().OfType<TNamedTypeDeclarationSyntax>().Any())
+                {
+                    editor.RemoveNode(namespaceContainer);
+                }
+            }
+
+            return await MoveItemsInNamespaceAsync(
+                modifiedDocument,
+                namespaceNode,
+                targetNamespace,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task<MoveToNamespaceResult> MoveTypeToNamespaceAsync(
+            SelectionAnalyzer.SelectionAnalysisResult selectionAnalysis,
+            string targetNamespace,
+            CancellationToken cancellationToken)
+        {
+            var (modifiedDocument, namespaceNode) = await SplitNodeIntoOwnNamespace(selectionAnalysis.Document, selectionAnalysis.Context, cancellationToken).ConfigureAwait(false);
+
+            if (modifiedDocument == null || namespaceNode == null)
+            {
+                return MoveToNamespaceResult.Failed;
+            }
+
+            return await MoveItemsInNamespaceAsync(
+                modifiedDocument,
+                namespaceNode,
+                targetNamespace,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task<(Document, TNamespaceDeclarationSyntax)> SplitNodeIntoOwnNamespace(
+            Document document, SyntaxNode container, CancellationToken cancellationToken)
         {
             var moveTypeService = document.GetLanguageService<IMoveTypeService>();
             if (moveTypeService == null)
             {
-                return MoveToNamespaceResult.Failed;
+                return (null, null);
             }
 
             // The move service expects a single position, not a full selection
@@ -202,11 +306,7 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
                 syntaxNode = container.FirstAncestorOrSelf<TNamespaceDeclarationSyntax>();
             }
 
-            return await MoveItemsInNamespaceAsync(
-                modifiedDocument,
-                syntaxNode,
-                targetNamespace,
-                cancellationToken).ConfigureAwait(false);
+            return (modifiedDocument, syntaxNode as TNamespaceDeclarationSyntax);
         }
 
         private static string GetNewSymbolName(ISymbol symbol, string targetNamespace)

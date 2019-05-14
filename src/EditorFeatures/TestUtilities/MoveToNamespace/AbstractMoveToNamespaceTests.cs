@@ -109,9 +109,9 @@ namespace Microsoft.CodeAnalysis.Test.Utilities.MoveToNamespace
             var workspace = CreateWorkspaceFromFile(markup, new TestParameters());
             using var testState = new TestState(workspace);
 
-            var analysis = await testState.MoveToNamespaceService.AnalyzeTypeAtPositionAsync(
+            var analysis = await testState.MoveToNamespaceService.AnalyzeTypeAtSelectionAsync(
                 testState.InvocationDocument,
-                testState.TestInvocationDocument.SelectedSpans.Single().Start,
+                testState.TestInvocationDocument.SelectedSpans.Single(),
                 CancellationToken.None);
 
             Assert.True(analysis.CanPerform);

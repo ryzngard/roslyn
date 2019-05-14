@@ -8,26 +8,23 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
     {
         public static readonly MoveToNamespaceAnalysisResult Invalid = new MoveToNamespaceAnalysisResult();
 
+        public SelectionAnalyzer.SelectionAnalysisResult SelectionAnalysis { get; }
         public bool CanPerform { get; }
-        public Document Document { get; }
-        public SyntaxNode SyntaxNode { get; }
         public string OriginalNamespace { get; }
         public ContainerType Container { get; }
         public ImmutableArray<string> Namespaces { get; }
 
         public MoveToNamespaceAnalysisResult(
-            Document document,
-            SyntaxNode syntaxNode,
+            SelectionAnalyzer.SelectionAnalysisResult analyzerResult,
             string originalNamespace,
             ImmutableArray<string> namespaces,
             ContainerType container)
         {
-            CanPerform = true;
-            Document = document;
-            SyntaxNode = syntaxNode;
+            SelectionAnalysis = analyzerResult;
             OriginalNamespace = originalNamespace;
-            Container = container;
             Namespaces = namespaces;
+            Container = container;
+            CanPerform = true;
         }
 
         private MoveToNamespaceAnalysisResult()

@@ -26,7 +26,7 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
         public override object GetOptions(CancellationToken cancellationToken)
         {
             return _moveToNamespaceService.GetChangeNamespaceOptions(
-                _moveToNamespaceAnalysisResult.Document,
+                _moveToNamespaceAnalysisResult.SelectionAnalysis.Document,
                 _moveToNamespaceAnalysisResult.OriginalNamespace,
                 _moveToNamespaceAnalysisResult.Namespaces);
         }
@@ -82,6 +82,7 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
             {
                 MoveToNamespaceAnalysisResult.ContainerType.NamedType => (AbstractMoveToNamespaceCodeAction)new MoveTypeToNamespaceCodeAction(changeNamespaceService, analysisResult),
                 MoveToNamespaceAnalysisResult.ContainerType.Namespace => new MoveItemsToNamespaceCodeAction(changeNamespaceService, analysisResult),
+                MoveToNamespaceAnalysisResult.ContainerType.MultipleNamedTypes => new MoveItemsToNamespaceCodeAction(changeNamespaceService, analysisResult),
                 _ => throw ExceptionUtilities.UnexpectedValue(analysisResult.Container)
             };
     }

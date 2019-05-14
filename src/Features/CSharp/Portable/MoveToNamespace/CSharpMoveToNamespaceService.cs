@@ -5,6 +5,7 @@ using System.Composition;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.MoveToNamespace;
+using Microsoft.CodeAnalysis.Text;
 
 namespace Microsoft.CodeAnalysis.CSharp.MoveToNamespace
 {
@@ -26,13 +27,13 @@ namespace Microsoft.CodeAnalysis.CSharp.MoveToNamespace
             return GetNamespaceName(namespaceDecl);
         }
 
-        protected override bool IsContainedInNamespaceDeclaration(NamespaceDeclarationSyntax namespaceDeclaration, int position)
+        protected override bool IsContainedInNamespaceDeclaration(NamespaceDeclarationSyntax namespaceDeclaration, TextSpan span)
         {
             var namespaceDeclarationStart = namespaceDeclaration.NamespaceKeyword.SpanStart;
             var namespaceDeclarationEnd = namespaceDeclaration.OpenBraceToken.SpanStart;
 
-            return position >= namespaceDeclarationStart &&
-                position < namespaceDeclarationEnd;
+            return span.Start >= namespaceDeclarationStart &&
+                span.End < namespaceDeclarationEnd;
         }
     }
 }
