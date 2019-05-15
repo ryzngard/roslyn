@@ -33,7 +33,7 @@ namespace Microsoft.CodeAnalysis.CSharp.MoveToNamespace
             var namespaceDeclarationEnd = namespaceDeclaration.OpenBraceToken.SpanStart;
 
             return span.Start >= namespaceDeclarationStart &&
-                span.End < namespaceDeclarationEnd;
+                span.Start < namespaceDeclarationEnd;
         }
     }
 }

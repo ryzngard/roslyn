@@ -1231,5 +1231,71 @@ expectedSymbolChanges: new Dictionary<string, string>()
     {"One.IService", "Two.IService" },
     {"One.Service", "Two.Service" }
 });
+
+        [WpfFact, Trait(Traits.Feature, Traits.Features.MoveToNamespace)]
+        public Task MoveToNamespace_MoveMultiple_SelectNamespace()
+        => TestMoveToNamespaceAsync(
+@"[|namespace One
+{
+    class A { }
+    
+    interface IService { }
+
+    class Service : IService 
+    { 
+        void DoStuff() {|] }
+    }
+}|]",
+expectedMarkup: @"namespace {|Warning:Two|}
+{
+    class A { }
+
+    interface IService { }
+
+    class Service : IService
+    {
+        void DoStuff() { }
+    }
+}",
+targetNamespace: "Two",
+expectedSymbolChanges: new Dictionary<string, string>()
+{
+    { "One.A", "Two.A" },
+    {"One.IService", "Two.IService" },
+    {"One.Service", "Two.Service" }
+});
+
+        [WpfFact, Trait(Traits.Feature, Traits.Features.MoveToNamespace)]
+        public Task MoveToNamespace_MoveMultiple_SelectNamespace2()
+        => TestMoveToNamespaceAsync(
+@"[|namespace One
+{
+    class A { } |]
+    
+    interface IService { }
+
+    class Service : IService 
+    { 
+        void DoStuff() { }
+    }
+}",
+expectedMarkup: @"namespace {|Warning:Two|}
+{
+    class A { }
+
+    interface IService { }
+
+    class Service : IService
+    {
+        void DoStuff() { }
+    }
+}",
+targetNamespace: "Two",
+expectedSymbolChanges: new Dictionary<string, string>()
+{
+    { "One.A", "Two.A" },
+    {"One.IService", "Two.IService" },
+    {"One.Service", "Two.Service" }
+});
     }
 }

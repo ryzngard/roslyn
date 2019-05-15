@@ -73,8 +73,12 @@ namespace Microsoft.CodeAnalysis.MoveToNamespace
             var document = analysis.Document;
             var intersectedTypeNodes = analysis.IntersectedNodes.OfType<TNamedTypeDeclarationSyntax>().ToImmutableArray();
 
-            if (analysis.Context is TNamespaceDeclarationSyntax namespaceDeclarationSyntax && intersectedTypeNodes.Any())
+            if (analysis.Context is TNamespaceDeclarationSyntax namespaceDeclarationSyntax 
+                && intersectedTypeNodes.Any()
+                && !IsContainedInNamespaceDeclaration(namespaceDeclarationSyntax, analysis.Selection))
             {
+                // Selection is on type nodes and not contained in the namespace, so move multiple types
+                // based on the selection
                 return new MoveToNamespaceAnalysisResult(
                     analysis,
                     GetNamespaceName(namespaceDeclarationSyntax),
