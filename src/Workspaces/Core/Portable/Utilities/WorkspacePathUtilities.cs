@@ -38,7 +38,7 @@ namespace Microsoft.CodeAnalysis.Utilities
         /// "a.cs" and "A.cs" both match a class called "A" 
         /// </summary>
         public static bool TypeNameMatchesDocumentName(Document document, string typeName)
-            => GetTypeNameFromDocumentName(document)?.Equals(typeName, StringComparison.OrdinalIgnoreCase) == true;
+            => GetTypeNameFromDocumentName(document)?.Equals(GetFileNameFromTypeName(typeName), StringComparison.OrdinalIgnoreCase) == true;
 
         /// <summary>
         /// Standard way to get the display name from a SyntaxNode. If the display
@@ -63,6 +63,18 @@ namespace Microsoft.CodeAnalysis.Utilities
             }
 
             return IOUtilities.PerformIO(() => Path.GetFileNameWithoutExtension(document.Name));
+        }
+
+        internal static string GetFileNameFromTypeName(string typeName)
+        {
+            var fileName = typeName;
+
+            foreach (var invalidChar in Path.GetInvalidFileNameChars())
+            {
+                fileName = fileName.Replace(invalidChar.ToString(), "");
+            }
+
+            return fileName;
         }
     }
 }

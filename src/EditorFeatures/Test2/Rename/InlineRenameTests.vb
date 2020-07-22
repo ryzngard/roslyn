@@ -205,6 +205,44 @@ class Deconstructable
             End Using
         End Function
 
+        <WpfTheory>
+        <CombinatorialData, Trait(Traits.Feature, Traits.Features.Rename)>
+        <WorkItem(540120, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/540120")>
+        Public Async Function TestInvalidFileName(host As RenameTestHost) As Task
+            Using workspace = CreateWorkspaceWithWaiter(
+                    <Workspace>
+                        <Project Language="C#" CommonReferences="true">
+                            <Document>
+                                class [|$$Test1|]
+                                {
+                                    void Blah()
+                                    {
+                                        [|Test1|] f = new [|Test1|]();
+                                    }
+                                }
+                            </Document>
+                        </Project>
+                    </Workspace>, host)
+
+                Dim session = StartSession(workspace)
+
+                ' Type a bit in the file
+                Dim caretPosition = workspace.Documents.Single(Function(d) d.CursorPosition.HasValue).CursorPosition.Value
+                Dim textBuffer = workspace.Documents.Single().GetTextBuffer()
+
+                textBuffer.Replace(New Span(caretPosition, "Test1".Length), "Bar<T>")
+
+                Await WaitForRename(workspace)
+
+                Await VerifyTagsAreCorrect(workspace, "Bar<T>")
+
+                session.Commit()
+
+                Await VerifyTagsAreCorrect(workspace, "Bar<T>")
+                VerifyFileName(workspace, "BarT")
+            End Using
+        End Function
+
         Private Shared Async Function VerifyRenameOptionChangedSessionCommit(workspace As TestWorkspace,
                                                            originalTextToRename As String,
                                                            renameTextPrefix As String,

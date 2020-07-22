@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Shared.Extensions;
+using Microsoft.CodeAnalysis.Utilities;
 using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.Rename.ConflictEngine
@@ -110,7 +111,8 @@ namespace Microsoft.CodeAnalysis.Rename.ConflictEngine
         internal void RenameDocumentToMatchNewSymbol(Document document)
         {
             var extension = Path.GetExtension(document.Name);
-            var newName = Path.ChangeExtension(ReplacementText, extension);
+            var fileName = WorkspacePathUtilities.GetFileNameFromTypeName(ReplacementText);
+            var newName = Path.ChangeExtension(fileName, extension);
 
             _renamedDocument = (document.Id, newName);
         }
