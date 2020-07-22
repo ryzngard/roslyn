@@ -11,8 +11,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CodeActions;
+using Microsoft.CodeAnalysis.LanguageServices;
 using Microsoft.CodeAnalysis.PooledObjects;
+using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis.Utilities;
 using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CodeRefactorings.MoveType
@@ -59,12 +62,10 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.MoveType
                 return document.Project.Solution;
             }
 
-            var suggestedFileNames = GetSuggestedFileNames(
+            var suggestedFileNames = WorkspacePathUtilities.GetSuggestedFileNames(
                 state.TypeNode,
-                IsNestedType(state.TypeNode),
-                state.TypeName,
-                state.SemanticDocument.Document.Name,
                 state.SemanticDocument.SemanticModel,
+                state.SemanticDocument.Document.GetRequiredLanguageService<ISyntaxFactsService>(),
                 cancellationToken);
 
             var editor = Editor.GetEditor(operationKind, (TService)this, state, suggestedFileNames.FirstOrDefault(), cancellationToken);
@@ -88,12 +89,9 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.MoveType
 
         private ImmutableArray<CodeAction> CreateActions(State state, CancellationToken cancellationToken)
         {
-            var typeMatchesDocumentName = TypeMatchesDocumentName(
-                state.TypeNode,
-                state.TypeName,
-                state.DocumentNameWithoutExtension,
-                state.SemanticDocument.SemanticModel,
-                cancellationToken);
+            var typeMatchesDocumentName = WorkspacePathUtilities.TypeNameMatchesDocumentName(
+                state.SemanticDocument.Document,
+                state.TypeName);
 
             if (typeMatchesDocumentName)
             {
@@ -105,12 +103,10 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.MoveType
             var manyTypes = MultipleTopLevelTypeDeclarationInSourceDocument(state.SemanticDocument.Root);
             var isNestedType = IsNestedType(state.TypeNode);
 
-            var suggestedFileNames = GetSuggestedFileNames(
+            var suggestedFileNames = WorkspacePathUtilities.GetSuggestedFileNames(
                 state.TypeNode,
-                isNestedType,
-                state.TypeName,
-                state.SemanticDocument.Document.Name,
                 state.SemanticDocument.SemanticModel,
+                state.SemanticDocument.Document.GetRequiredLanguageService<ISyntaxFactsService>(),
                 cancellationToken);
 
             // (1) Add Move type to new file code action:
@@ -178,72 +174,10 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.MoveType
                 typeDeclaration =>
                 {
                     var typeName = semanticModel.GetDeclaredSymbol(typeDeclaration, cancellationToken).Name;
-                    return TypeMatchesDocumentName(
-                        typeDeclaration, typeName, state.DocumentNameWithoutExtension,
-                        semanticModel, cancellationToken);
+                    return WorkspacePathUtilities.TypeNameMatchesDocumentName(
+                        state.SemanticDocument.Document,
+                        typeName);
                 });
         }
-
-        /// <summary>
-        /// checks if type name matches its parent document name, per style rules.
-        /// </summary>
-        /// <remarks>
-        /// Note: For a nested type, a matching document name could be just the type name or a
-        /// dotted qualified name of its type hierarchy.
-        /// </remarks>
-        protected static bool TypeMatchesDocumentName(
-            TTypeDeclarationSyntax typeNode,
-            string typeName,
-            string documentNameWithoutExtension,
-            SemanticModel semanticModel,
-            CancellationToken cancellationToken)
-        {
-            // If it is not a nested type, we compare the unqualified type name with the document name.
-            // If it is a nested type, the type name `Outer.Inner` matches file names `Inner.cs` and `Outer.Inner.cs`
-            var namesMatch = typeName.Equals(documentNameWithoutExtension, StringComparison.CurrentCulture);
-            if (!namesMatch)
-            {
-                var typeNameParts = GetTypeNamePartsForNestedTypeNode(typeNode, semanticModel, cancellationToken);
-                var fileNameParts = documentNameWithoutExtension.Split('.');
-
-                // qualified type name `Outer.Inner` matches file names `Inner.cs` and `Outer.Inner.cs`
-                return typeNameParts.SequenceEqual(fileNameParts, StringComparer.CurrentCulture);
-            }
-
-            return namesMatch;
-        }
-
-        private static ImmutableArray<string> GetSuggestedFileNames(
-            TTypeDeclarationSyntax typeNode,
-            bool isNestedType,
-            string typeName,
-            string documentNameWithExtension,
-            SemanticModel semanticModel,
-            CancellationToken cancellationToken)
-        {
-            var fileExtension = Path.GetExtension(documentNameWithExtension);
-
-            var standaloneName = typeName + fileExtension;
-
-            // If it is a nested type, we should match type hierarchy's name parts with the file name.
-            if (isNestedType)
-            {
-                var typeNameParts = GetTypeNamePartsForNestedTypeNode(typeNode, semanticModel, cancellationToken);
-                var dottedName = typeNameParts.Join(".") + fileExtension;
-
-                return ImmutableArray.Create(standaloneName, dottedName);
-            }
-            else
-            {
-                return ImmutableArray.Create(standaloneName);
-            }
-        }
-
-        private static IEnumerable<string> GetTypeNamePartsForNestedTypeNode(
-            TTypeDeclarationSyntax typeNode, SemanticModel semanticModel, CancellationToken cancellationToken) =>
-                typeNode.AncestorsAndSelf()
-                        .OfType<TTypeDeclarationSyntax>()
-                        .Select(n => semanticModel.GetDeclaredSymbol(n, cancellationToken).Name)
-                        .Reverse();
     }
 }

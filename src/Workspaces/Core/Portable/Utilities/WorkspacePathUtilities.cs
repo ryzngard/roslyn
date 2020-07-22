@@ -6,8 +6,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Microsoft.CodeAnalysis.LanguageServices;
 using Microsoft.CodeAnalysis.Shared.Utilities;
 using Roslyn.Utilities;
@@ -76,5 +78,36 @@ namespace Microsoft.CodeAnalysis.Utilities
 
             return fileName;
         }
+
+        public static ImmutableArray<string> GetSuggestedFileNames(
+            SyntaxNode typeNode,
+            SemanticModel semanticModel,
+            ISyntaxFacts syntaxFacts,
+            CancellationToken cancellationToken)
+        {
+            var declaredType = semanticModel.GetDeclaredSymbol(typeNode);
+            var isNestedType = syntaxFacts.IsTypeDeclaration(typeNode.Parent);
+            var standaloneName = GetFileNameFromTypeName(declaredType.Name);
+
+            // If it is a nested type, we should match type hierarchy's name parts with the file name.
+            if (isNestedType)
+            {
+                var typeNameParts = GetTypeNamePartsForNestedTypeNode(typeNode, syntaxFacts, semanticModel, cancellationToken);
+                var dottedName = typeNameParts.Join(".");
+
+                return ImmutableArray.Create(standaloneName, dottedName);
+            }
+            else
+            {
+                return ImmutableArray.Create(standaloneName);
+            }
+        }
+
+        private static IEnumerable<string> GetTypeNamePartsForNestedTypeNode(
+            SyntaxNode typeNode, ISyntaxFacts syntaxFacts, SemanticModel semanticModel, CancellationToken cancellationToken) =>
+                typeNode.AncestorsAndSelf()
+                        .Where(syntaxFacts.IsTypeDeclaration)
+                        .Select(n => GetFileNameFromTypeName(semanticModel.GetDeclaredSymbol(n, cancellationToken).Name))
+                        .Reverse();
     }
 }
