@@ -62,12 +62,11 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.ExtractInterface
             }
         }
 
-        public Task<ExtractInterfaceTypeAnalysisResult> GetTypeAnalysisResultAsync(TypeDiscoveryRule typeDiscoveryRule)
+        public Task<ExtractInterfaceTypeAnalysisResult> GetTypeAnalysisResultAsync()
         {
             return ExtractInterfaceService.AnalyzeTypeAtPositionAsync(
                 ExtractFromDocument,
                 _testDocument.CursorPosition.Value,
-                typeDiscoveryRule,
                 CancellationToken.None);
         }
 

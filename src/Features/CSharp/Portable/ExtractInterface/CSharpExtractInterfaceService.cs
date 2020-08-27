@@ -12,11 +12,8 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CSharp.Extensions;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.ExtractInterface;
-using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Shared.Extensions;
-using Microsoft.CodeAnalysis.Text;
-using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp.ExtractInterface
 {
@@ -27,26 +24,6 @@ namespace Microsoft.CodeAnalysis.CSharp.ExtractInterface
         [Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
         public CSharpExtractInterfaceService()
         {
-        }
-
-        protected override async Task<SyntaxNode> GetTypeDeclarationAsync(Document document, int position, TypeDiscoveryRule typeDiscoveryRule, CancellationToken cancellationToken)
-        {
-            var tree = await document.GetSyntaxTreeAsync(cancellationToken).ConfigureAwait(false);
-            var root = await tree.GetRootAsync(cancellationToken).ConfigureAwait(false);
-            var token = root.FindToken(position != tree.Length ? position : Math.Max(0, position - 1));
-            var typeDeclaration = token.GetAncestor<TypeDeclarationSyntax>();
-
-            if (typeDeclaration == null ||
-                typeDiscoveryRule == TypeDiscoveryRule.TypeDeclaration)
-            {
-                return typeDeclaration;
-            }
-
-            var spanStart = typeDeclaration.Identifier.SpanStart;
-            var spanEnd = typeDeclaration.TypeParameterList != null ? typeDeclaration.TypeParameterList.Span.End : typeDeclaration.Identifier.Span.End;
-            var span = new TextSpan(spanStart, spanEnd - spanStart);
-
-            return span.IntersectsWith(position) ? typeDeclaration : null;
         }
 
         internal override string GetContainingNamespaceDisplay(INamedTypeSymbol typeSymbol, CompilationOptions compilationOptions)

@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CodeGeneration;
 using Microsoft.CodeAnalysis.Editing;
+using Microsoft.CodeAnalysis.ExtractMembers;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.LanguageServices;
@@ -26,12 +27,6 @@ namespace Microsoft.CodeAnalysis.ExtractInterface
 {
     internal abstract class AbstractExtractInterfaceService : ILanguageService
     {
-        protected abstract Task<SyntaxNode> GetTypeDeclarationAsync(
-            Document document,
-            int position,
-            TypeDiscoveryRule typeDiscoveryRule,
-            CancellationToken cancellationToken);
-
         protected abstract Task<Solution> UpdateMembersWithExplicitImplementationsAsync(
             Solution unformattedSolution,
             IReadOnlyList<DocumentId> documentId,
@@ -47,7 +42,7 @@ namespace Microsoft.CodeAnalysis.ExtractInterface
 
         public async Task<ImmutableArray<ExtractInterfaceCodeAction>> GetExtractInterfaceCodeActionAsync(Document document, TextSpan span, CancellationToken cancellationToken)
         {
-            var typeAnalysisResult = await AnalyzeTypeAtPositionAsync(document, span.Start, TypeDiscoveryRule.TypeNameOnly, cancellationToken).ConfigureAwait(false);
+            var typeAnalysisResult = await AnalyzeTypeAtPositionAsync(document, span.Start, cancellationToken).ConfigureAwait(false);
 
             return typeAnalysisResult.CanExtractInterface
                 ? ImmutableArray.Create(new ExtractInterfaceCodeAction(this, typeAnalysisResult))
@@ -63,7 +58,6 @@ namespace Microsoft.CodeAnalysis.ExtractInterface
             var typeAnalysisResult = await AnalyzeTypeAtPositionAsync(
                 documentWithTypeToExtractFrom,
                 position,
-                TypeDiscoveryRule.TypeDeclaration,
                 cancellationToken).ConfigureAwait(false);
 
             if (!typeAnalysisResult.CanExtractInterface)
@@ -78,33 +72,25 @@ namespace Microsoft.CodeAnalysis.ExtractInterface
         public async Task<ExtractInterfaceTypeAnalysisResult> AnalyzeTypeAtPositionAsync(
             Document document,
             int position,
-            TypeDiscoveryRule typeDiscoveryRule,
             CancellationToken cancellationToken)
         {
-            var typeNode = await GetTypeDeclarationAsync(document, position, typeDiscoveryRule, cancellationToken).ConfigureAwait(false);
-            if (typeNode == null)
+            var analyzer = document.GetRequiredLanguageService<AbstractExtractMemberAnalyzer>();
+            var analyzerResult = await analyzer.AnalyzeAsync(document, new TextSpan(position, 0), cancellationToken).ConfigureAwait(false);
+
+            if (analyzerResult.OriginalType is null || analyzerResult.OriginalTypeDeclarationNode is null)
             {
                 var errorMessage = FeaturesResources.Could_not_extract_interface_colon_The_selection_is_not_inside_a_class_interface_struct;
                 return new ExtractInterfaceTypeAnalysisResult(errorMessage);
             }
 
-            var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
-            var type = semanticModel.GetDeclaredSymbol(typeNode, cancellationToken);
-            if (type == null || type.Kind != SymbolKind.NamedType)
-            {
-                var errorMessage = FeaturesResources.Could_not_extract_interface_colon_The_selection_is_not_inside_a_class_interface_struct;
-                return new ExtractInterfaceTypeAnalysisResult(errorMessage);
-            }
-
-            var typeToExtractFrom = type as INamedTypeSymbol;
-            var extractableMembers = typeToExtractFrom.GetMembers().Where(IsExtractableMember);
+            var extractableMembers = analyzerResult.OriginalType.GetMembers().Where(IsExtractableMember);
             if (!extractableMembers.Any())
             {
                 var errorMessage = FeaturesResources.Could_not_extract_interface_colon_The_type_does_not_contain_any_member_that_can_be_extracted_to_an_interface;
                 return new ExtractInterfaceTypeAnalysisResult(errorMessage);
             }
 
-            return new ExtractInterfaceTypeAnalysisResult(document, typeNode, typeToExtractFrom, extractableMembers);
+            return new ExtractInterfaceTypeAnalysisResult(document, analyzerResult.OriginalTypeDeclarationNode, analyzerResult.OriginalType, extractableMembers);
         }
 
         public async Task<ExtractInterfaceResult> ExtractInterfaceFromAnalyzedTypeAsync(ExtractInterfaceTypeAnalysisResult refactoringResult, CancellationToken cancellationToken)

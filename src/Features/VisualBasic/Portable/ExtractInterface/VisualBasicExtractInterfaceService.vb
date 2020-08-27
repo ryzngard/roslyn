@@ -8,7 +8,6 @@ Imports System.Threading
 Imports Microsoft.CodeAnalysis.ExtractInterface
 Imports Microsoft.CodeAnalysis.Formatting
 Imports Microsoft.CodeAnalysis.Host.Mef
-Imports Microsoft.CodeAnalysis.Text
 Imports Microsoft.CodeAnalysis.VisualBasic
 Imports Microsoft.CodeAnalysis.VisualBasic.Syntax
 
@@ -21,30 +20,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExtractInterface
         <Obsolete(MefConstruction.ImportingConstructorMessage, True)>
         Public Sub New()
         End Sub
-
-        Protected Overrides Async Function GetTypeDeclarationAsync(
-            document As Document, position As Integer,
-            typeDiscoveryRule As TypeDiscoveryRule,
-            cancellationToken As CancellationToken) As Task(Of SyntaxNode)
-
-            Dim tree = Await document.GetSyntaxTreeAsync(cancellationToken).ConfigureAwait(False)
-            Dim root = Await tree.GetRootAsync(cancellationToken).ConfigureAwait(False)
-            Dim token = root.FindToken(If(position <> tree.Length, position, Math.Max(0, position - 1)))
-            Dim typeDeclaration = token.GetAncestor(Of TypeBlockSyntax)()
-
-            If typeDeclaration Is Nothing OrElse
-               typeDeclaration.Kind = SyntaxKind.ModuleStatement Then
-                Return Nothing
-            ElseIf typeDiscoveryRule = TypeDiscoveryRule.TypeDeclaration Then
-                Return typeDeclaration
-            End If
-
-            Dim spanStart = typeDeclaration.BlockStatement.Identifier.SpanStart
-            Dim spanEnd = If(typeDeclaration.BlockStatement.TypeParameterList IsNot Nothing, typeDeclaration.BlockStatement.TypeParameterList.Span.End, typeDeclaration.BlockStatement.Identifier.Span.End)
-            Dim span = New TextSpan(spanStart, spanEnd - spanStart)
-
-            Return If(span.IntersectsWith(position), typeDeclaration, Nothing)
-        End Function
 
         Friend Overrides Function GetContainingNamespaceDisplay(typeSymbol As INamedTypeSymbol, compilationOptions As CompilationOptions) As String
             Dim namespaceSymbol = typeSymbol.ContainingNamespace
