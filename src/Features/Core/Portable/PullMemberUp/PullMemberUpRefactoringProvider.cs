@@ -39,9 +39,9 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.PullMemberUp
             var (document, span, cancellationToken) = context;
 
             var analyzer = document.GetRequiredLanguageService<AbstractExtractMemberAnalyzer>();
-            var analyzerResult = await analyzer.AnalyzeAsync(document, span, cancellationToken).ConfigureAwait(false); ;
+            var analyzerResult = await analyzer.AnalyzeAsync(document, span, cancellationToken).ConfigureAwait(false);
 
-            if (analyzerResult == ExtractMemberAnalysis.InvalidSelection)
+            if (analyzerResult == ExtractMemberAnalysis.InvalidSelection || analyzerResult.SelectedMembers.IsDefaultOrEmpty)
             {
                 return;
             }
@@ -49,44 +49,43 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.PullMemberUp
             Contract.ThrowIfNull(analyzerResult.OriginalType);
             Contract.ThrowIfNull(analyzerResult.OriginalTypeDeclarationNode);
 
+            var validSelectedMembers = analyzerResult
+                .SelectedMembers
+                .WhereAsArray(pair => MemberAndDestinationValidator.IsMemberValid(pair.symbol));
+
             // Currently only member selections are supported
-            if (analyzerResult.SelectedMember is null ||
-                !MemberAndDestinationValidator.IsMemberValid(analyzerResult.SelectedMember))
+            if (validSelectedMembers.IsEmpty)
             {
                 return;
             }
 
-            var allDestinations = FindAllValidDestinations(
-                analyzerResult.SelectedMember,
-                document.Project.Solution,
-                cancellationToken);
+            var allDestinations = validSelectedMembers.All(pair => pair.symbol.IsKind(SymbolKind.Field))
+                ? analyzerResult.OriginalType.GetBaseTypes()
+                : analyzerResult.OriginalType.AllInterfaces.Concat(analyzerResult.OriginalType.GetBaseTypes());
 
-            if (allDestinations.Length == 0)
-            {
-                return;
-            }
-
-            var allActions = allDestinations.Select(destination => MembersPuller.TryComputeCodeAction(document, analyzerResult.SelectedMember, destination))
-                .WhereNotNull().Concat(new PullMemberUpWithDialogCodeAction(document, analyzerResult.SelectedMember, _service))
+            var validDestinations = allDestinations
+                .Where(destination => MemberAndDestinationValidator.IsDestinationValid(document.Project.Solution, destination, cancellationToken))
                 .ToImmutableArray();
 
-            var nestedCodeAction = new CodeActionWithNestedActions(
-                string.Format(FeaturesResources.Pull_0_up, analyzerResult.SelectedMember.ToNameDisplayString()),
-                allActions, isInlinable: true);
-            context.RegisterRefactoring(nestedCodeAction, analyzerResult.SelectedMemberNode.Span);
-        }
+            if (validDestinations.Length == 0)
+            {
+                return;
+            }
 
-        private static ImmutableArray<INamedTypeSymbol> FindAllValidDestinations(
-            ISymbol selectedMember,
-            Solution solution,
-            CancellationToken cancellationToken)
-        {
-            var containingType = selectedMember.ContainingType;
-            var allDestinations = selectedMember.IsKind(SymbolKind.Field)
-                ? containingType.GetBaseTypes().ToImmutableArray()
-                : containingType.AllInterfaces.Concat(containingType.GetBaseTypes()).ToImmutableArray();
+            var allActions = validDestinations.Select(destination => MembersPuller.TryComputeCodeAction(document, validSelectedMembers, destination))
+                .WhereNotNull().Concat(new PullMemberUpWithDialogCodeAction(document, analyzerResult.OriginalType, validSelectedMembers, _service))
+                .ToImmutableArray();
 
-            return allDestinations.WhereAsArray(destination => MemberAndDestinationValidator.IsDestinationValid(solution, destination, cancellationToken));
+            if (validSelectedMembers.Length == 1)
+            {
+                var selectedMember = validSelectedMembers.Single();
+
+                var nestedCodeAction = new CodeActionWithNestedActions(
+                    string.Format(FeaturesResources.Pull_0_up, selectedMember.symbol.ToNameDisplayString()),
+                    allActions, isInlinable: true);
+
+                context.RegisterRefactoring(nestedCodeAction, selectedMember.node.Span);
+            }
         }
     }
 }

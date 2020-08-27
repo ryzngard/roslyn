@@ -4,6 +4,7 @@
 
 #nullable enable
 
+using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Host;
 
@@ -11,6 +12,6 @@ namespace Microsoft.CodeAnalysis.ExtractClass
 {
     internal interface IExtractClassOptionsService : IWorkspaceService
     {
-        Task<ExtractClassOptions?> GetExtractClassOptionsAsync(Document document, INamedTypeSymbol originalType, ISymbol? selectedMember);
+        Task<ExtractClassOptions?> GetExtractClassOptionsAsync(Document document, INamedTypeSymbol originalType, ImmutableArray<(SyntaxNode node, ISymbol symbol)> selectedMembers);
     }
 }

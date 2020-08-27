@@ -27,7 +27,7 @@ namespace Microsoft.CodeAnalysis.ExtractClass
     internal class ExtractClassWithDialogCodeAction : CodeActionWithOptions
     {
         private readonly Document _document;
-        private readonly ISymbol? _selectedMember;
+        private readonly ImmutableArray<(SyntaxNode node, ISymbol symbol)> _selectedMembers;
         private readonly INamedTypeSymbol _selectedType;
         private readonly SyntaxNode _selectedTypeDeclarationNode;
         private readonly IExtractClassOptionsService _service;
@@ -41,20 +41,20 @@ namespace Microsoft.CodeAnalysis.ExtractClass
             IExtractClassOptionsService service,
             INamedTypeSymbol selectedType,
             SyntaxNode selectedTypeDeclarationNode,
-            ISymbol? selectedMember = null)
+            ImmutableArray<(SyntaxNode, ISymbol)> selectedMembers)
         {
             _document = document;
             _service = service;
             _selectedType = selectedType;
             _selectedTypeDeclarationNode = selectedTypeDeclarationNode;
-            _selectedMember = selectedMember;
+            _selectedMembers = selectedMembers;
             Span = span;
         }
 
         public override object? GetOptions(CancellationToken cancellationToken)
         {
             var extractClassService = _service ?? _document.Project.Solution.Workspace.Services.GetRequiredService<IExtractClassOptionsService>();
-            return extractClassService.GetExtractClassOptionsAsync(_document, _selectedType, _selectedMember)
+            return extractClassService.GetExtractClassOptionsAsync(_document, _selectedType, _selectedMembers)
                 .WaitAndGetResult_CanCallOnBackground(cancellationToken);
         }
 

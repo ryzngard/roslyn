@@ -1579,15 +1579,15 @@ class Test : MyBase
             public string FileName { get; set; } = "MyBase.cs";
             public string BaseName { get; set; } = "MyBase";
 
-            public Task<ExtractClassOptions> GetExtractClassOptionsAsync(Document document, INamedTypeSymbol originalSymbol, ISymbol selectedMember)
+            public Task<ExtractClassOptions> GetExtractClassOptionsAsync(Document document, INamedTypeSymbol originalTypeSymbol, ImmutableArray<(SyntaxNode node, ISymbol symbol)> selectedMembers)
             {
-                var availableMembers = originalSymbol.GetMembers().Where(member => MemberAndDestinationValidator.IsMemberValid(member));
+                var availableMembers = originalTypeSymbol.GetMembers().Where(member => MemberAndDestinationValidator.IsMemberValid(member));
 
                 IEnumerable<(ISymbol member, bool makeAbstract)> selections;
 
                 if (_dialogSelection == null)
                 {
-                    if (selectedMember is null)
+                    if (selectedMembers.IsDefaultOrEmpty)
                     {
                         Assert.True(isClassDeclarationSelection);
                         selections = availableMembers.Select(member => (member, makeAbstract: false));
@@ -1595,7 +1595,7 @@ class Test : MyBase
                     else
                     {
                         Assert.False(isClassDeclarationSelection);
-                        selections = new[] { (selectedMember, false) };
+                        selections = selectedMembers.Select(pair => (member: pair.symbol, makeAbstract: false));
                     }
                 }
                 else

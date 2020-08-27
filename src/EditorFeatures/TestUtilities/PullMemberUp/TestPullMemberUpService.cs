@@ -24,16 +24,16 @@ namespace Microsoft.CodeAnalysis.Test.Utilities.PullMemberUp
             DestinationName = destinationName;
         }
 
-        public PullMembersUpOptions GetPullMemberUpOptions(Document document, ISymbol selectedNodeSymbol)
+        public PullMembersUpOptions GetPullMemberUpOptions(Document document, INamedTypeSymbol containingType, ImmutableArray<(SyntaxNode node, ISymbol symbol)> selectedMembers)
         {
-            var members = selectedNodeSymbol.ContainingType.GetMembers().Where(member => MemberAndDestinationValidator.IsMemberValid(member));
+            var members = containingType.GetMembers().Where(member => MemberAndDestinationValidator.IsMemberValid(member));
 
             var selectedMember = _selectedMembers == null
                 ? members.Select(member => (member, false))
                 : _selectedMembers.Select(selection => (members.Single(symbol => symbol.Name == selection.member), selection.makeAbstract));
 
-            var allInterfaces = selectedNodeSymbol.ContainingType.AllInterfaces;
-            var baseClass = selectedNodeSymbol.ContainingType.BaseType;
+            var allInterfaces = containingType.AllInterfaces;
+            var baseClass = containingType.BaseType;
 
             INamedTypeSymbol destination = null;
             if (DestinationName == null)
@@ -42,7 +42,7 @@ namespace Microsoft.CodeAnalysis.Test.Utilities.PullMemberUp
 
                 if (destination == null)
                 {
-                    throw new ArgumentException($"No target base type for {selectedNodeSymbol}");
+                    throw new ArgumentException($"No target base type for {containingType}");
                 }
             }
             else

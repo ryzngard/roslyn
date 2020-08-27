@@ -21,23 +21,37 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.PullMemberUp
     internal static class MembersPuller
     {
         /// <summary>
-        /// Return the CodeAction to pull <paramref name="selectedMember"/> up to destinationType. If the pulling will cause error, it will return null.
+        /// Return the CodeAction to pull <paramref name="selectedMembers" /> up to destinationType. If the pulling will cause error, it will return null.
         /// </summary>
         public static CodeAction TryComputeCodeAction(
             Document document,
-            ISymbol selectedMember,
+            ImmutableArray<(SyntaxNode node, ISymbol symbol)> selectedMembers,
             INamedTypeSymbol destination)
         {
-            var result = PullMembersUpOptionsBuilder.BuildPullMembersUpOptions(destination, ImmutableArray.Create((member: selectedMember, makeAbstract: false)));
-            if (result.PullUpOperationNeedsToDoExtraChanges ||
-                IsSelectedMemberDeclarationAlreadyInDestination(selectedMember, destination))
+            var result = PullMembersUpOptionsBuilder.BuildPullMembersUpOptions(destination, selectedMembers.SelectAsArray(pair => (member: pair.symbol, makeAbstract: false)));
+
+            if (result.PullUpOperationNeedsToDoExtraChanges)
             {
                 return null;
             }
 
-            return new SolutionChangeAction(
-                string.Format(FeaturesResources.Pull_0_up_to_1, selectedMember.Name, result.Destination.Name),
-                cancellationToken => PullMembersUpAsync(document, result, cancellationToken));
+            var declarationsNotAlreadyInDestination = selectedMembers.WhereAsArray(pair => !IsSelectedMemberDeclarationAlreadyInDestination(pair.symbol, destination));
+            if (declarationsNotAlreadyInDestination.IsEmpty)
+            {
+                return null;
+            }
+
+            if (declarationsNotAlreadyInDestination.Length == 1)
+            {
+                var selectedMember = declarationsNotAlreadyInDestination.Single();
+
+                return new SolutionChangeAction(
+                    string.Format(FeaturesResources.Pull_0_up_to_1, selectedMember.symbol.Name, result.Destination.Name),
+                    cancellationToken => PullMembersUpAsync(document, result, cancellationToken));
+            }
+
+            // TODO: Return an action for multiple members
+            return null;
         }
 
         /// <summary>

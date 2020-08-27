@@ -3,7 +3,9 @@
 // See the LICENSE file in the project root for more information.  
 
 using System;
+using System.Collections.Immutable;
 using System.Composition;
+using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeRefactorings.PullMemberUp.Dialog;
@@ -32,16 +34,16 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.PullMemberUp
             _waitIndicator = waitIndicator;
         }
 
-        public PullMembersUpOptions GetPullMemberUpOptions(Document document, ISymbol selectedMember)
+        public PullMembersUpOptions GetPullMemberUpOptions(Document document, INamedTypeSymbol containingType, ImmutableArray<(SyntaxNode node, ISymbol symbol)> selectedMembers)
         {
-            var membersInType = selectedMember.ContainingType.GetMembers().
+            var membersInType = containingType.GetMembers().
                 WhereAsArray(member => MemberAndDestinationValidator.IsMemberValid(member));
             var memberViewModels = membersInType
                 .SelectAsArray(member =>
                     new PullMemberUpSymbolViewModel(member, _glyphService)
                     {
                         // The member user selected will be checked at the beginning.
-                        IsChecked = SymbolEquivalenceComparer.Instance.Equals(selectedMember, member),
+                        IsChecked = selectedMembers.Any(pair => SymbolEquivalenceComparer.Instance.Equals(pair.symbol, member)),
                         MakeAbstract = false,
                         IsMakeAbstractCheckable = !member.IsKind(SymbolKind.Field) && !member.IsAbstract,
                         IsCheckable = true
@@ -51,7 +53,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.PullMemberUp
             var baseTypeRootViewModel = BaseTypeTreeNodeViewModel.CreateBaseTypeTree(
                 _glyphService,
                 document.Project.Solution,
-                selectedMember.ContainingType,
+                containingType,
                 cancellationTokenSource.Token).BaseTypeNodes;
             var memberToDependentsMap = SymbolDependentsBuilder.FindMemberToDependentsMap(membersInType, document.Project, cancellationTokenSource.Token);
             var viewModel = new PullMemberUpDialogViewModel(_waitIndicator, memberViewModels, baseTypeRootViewModel, memberToDependentsMap);

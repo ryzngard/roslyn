@@ -5,6 +5,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CodeActions;
@@ -19,9 +20,10 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.PullMemberUp
         private class PullMemberUpWithDialogCodeAction : CodeActionWithOptions
         {
             /// <summary>
-            /// Member which user initially selects. It will be selected initially when the dialog pops up.
+            /// Members which user initially selects. They will be selected initially when the dialog pops up.
             /// </summary>
-            private readonly ISymbol _selectedMember;
+            private readonly ImmutableArray<(SyntaxNode node, ISymbol symbol)> _selectedMembers;
+            private readonly INamedTypeSymbol _containingType;
             private readonly Document _document;
             private readonly IPullMemberUpOptionsService _service;
 
@@ -29,18 +31,20 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.PullMemberUp
 
             public PullMemberUpWithDialogCodeAction(
                 Document document,
-                ISymbol selectedMember,
+                INamedTypeSymbol containingType,
+                ImmutableArray<(SyntaxNode, ISymbol)> selectedMembers,
                 IPullMemberUpOptionsService service)
             {
                 _document = document;
-                _selectedMember = selectedMember;
+                _selectedMembers = selectedMembers;
+                _containingType = containingType;
                 _service = service;
             }
 
             public override object GetOptions(CancellationToken cancellationToken)
             {
                 var pullMemberUpOptionService = _service ?? _document.Project.Solution.Workspace.Services.GetRequiredService<IPullMemberUpOptionsService>();
-                return pullMemberUpOptionService.GetPullMemberUpOptions(_document, _selectedMember);
+                return pullMemberUpOptionService.GetPullMemberUpOptions(_document, _containingType, _selectedMembers);
             }
 
             protected override async Task<IEnumerable<CodeActionOperation>> ComputeOperationsAsync(object options, CancellationToken cancellationToken)

@@ -48,7 +48,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ExtractClass
             _waitIndicator = waitIndicator;
         }
 
-        public async Task<ExtractClassOptions?> GetExtractClassOptionsAsync(Document document, INamedTypeSymbol selectedType, ISymbol? selectedMember)
+        public async Task<ExtractClassOptions?> GetExtractClassOptionsAsync(Document document, INamedTypeSymbol selectedType, ImmutableArray<(SyntaxNode node, ISymbol symbol)> selectedMembers)
         {
             var notificationService = document.Project.Solution.Workspace.Services.GetRequiredService<INotificationService>();
 
@@ -60,7 +60,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Implementation.ExtractClass
                     new PullMemberUpSymbolViewModel(member, _glyphService)
                     {
                         // The member user selected will be checked at the beginning.
-                        IsChecked = SymbolEquivalenceComparer.Instance.Equals(selectedMember, member),
+                        IsChecked = selectedMembers.Any(pair => SymbolEquivalenceComparer.Instance.Equals(pair.symbol, member)),
                         MakeAbstract = false,
                         IsMakeAbstractCheckable = !member.IsKind(SymbolKind.Field) && !member.IsAbstract,
                         IsCheckable = true

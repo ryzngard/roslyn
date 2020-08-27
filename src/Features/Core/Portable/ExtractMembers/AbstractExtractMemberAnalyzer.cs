@@ -4,6 +4,8 @@
 
 #nullable enable
 
+using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Host;
@@ -16,7 +18,12 @@ namespace Microsoft.CodeAnalysis.ExtractMembers
 {
     internal abstract class AbstractExtractMemberAnalyzer : ILanguageService
     {
-        protected abstract Task<SyntaxNode?> GetSelectedMemberNodeAsync(Document document, TextSpan span, CancellationToken cancellationToken);
+        /// <summary>
+        /// Gets all of the selected member nodes in the span that are part of the same type declaration. If the span goes 
+        /// across multiple type declarations, the first declaration found is used. Anything outside of that declaration 
+        /// is not returned
+        /// </summary>
+        protected abstract Task<ImmutableArray<SyntaxNode>> GetSelectedMemberNodesAsync(Document document, TextSpan span, CancellationToken cancellationToken);
         protected abstract Task<SyntaxNode?> GetSelectedClassDeclarationAsync(Document document, TextSpan span, CancellationToken cancellationToken);
 
         public async Task<ExtractMemberAnalysis> AnalyzeAsync(Document document, TextSpan span, CancellationToken cancellationToken)
@@ -52,31 +59,27 @@ namespace Microsoft.CodeAnalysis.ExtractMembers
 
         private async Task<ExtractMemberAnalysis?> GetMemberNodeAnalysisAsync(Document document, TextSpan span, CancellationToken cancellationToken)
         {
-            var selectedMemberNode = await GetSelectedMemberNodeAsync(document, span, cancellationToken).ConfigureAwait(false);
-            if (selectedMemberNode is null)
-            {
-                return null;
-            }
-
+            var selectedMemberNodes = await GetSelectedMemberNodesAsync(document, span, cancellationToken).ConfigureAwait(false);
             var semanticModel = await document.GetRequiredSemanticModelAsync(cancellationToken).ConfigureAwait(false);
-            var selectedMember = semanticModel.GetDeclaredSymbol(selectedMemberNode, cancellationToken);
-            if (selectedMember is null || selectedMember.ContainingType is null)
-            {
-                return null;
-            }
 
-            // Use same logic as pull members up for determining if a selected member
-            // is valid to be moved into a base
-            if (!MemberAndDestinationValidator.IsMemberValid(selectedMember))
+            var selectedMemberNodeSymbolPairs = selectedMemberNodes
+                .Select(node => (node: node, symbol: semanticModel.GetDeclaredSymbol(node, cancellationToken)))
+                .Where((pair) => pair.symbol != null && MemberAndDestinationValidator.IsMemberValid(pair.symbol))
+                .ToImmutableArray();
+
+            if (selectedMemberNodeSymbolPairs.Length == 0)
             {
                 return null;
             }
 
             var syntaxFacts = document.GetRequiredLanguageService<ISyntaxFactsService>();
-            var containingTypeDeclarationNode = selectedMemberNode.FirstAncestorOrSelf<SyntaxNode>(syntaxFacts.IsTypeDeclaration);
-            var containingType = selectedMember.ContainingType;
 
-            return new ExtractMemberAnalysis(containingType, containingTypeDeclarationNode, selectedMember, selectedMemberNode);
+            // We're guaranteed that all the members 
+            var firstPair = selectedMemberNodeSymbolPairs.First();
+            var containingTypeDeclarationNode = firstPair.node.FirstAncestorOrSelf<SyntaxNode>(syntaxFacts.IsTypeDeclaration);
+            var containingType = firstPair.symbol.ContainingType;
+
+            return new ExtractMemberAnalysis(containingType, containingTypeDeclarationNode, selectedMemberNodeSymbolPairs);
         }
     }
 
@@ -86,19 +89,16 @@ namespace Microsoft.CodeAnalysis.ExtractMembers
 
         public INamedTypeSymbol? OriginalType { get; }
         public SyntaxNode? OriginalTypeDeclarationNode { get; }
-        public ISymbol? SelectedMember { get; }
-        public SyntaxNode? SelectedMemberNode { get; }
+        public ImmutableArray<(SyntaxNode node, ISymbol symbol)> SelectedMembers { get; }
 
         public ExtractMemberAnalysis(
             INamedTypeSymbol originalType,
             SyntaxNode? containingTypeDeclarationNode,
-            ISymbol? selectedMember = null,
-            SyntaxNode? selectedMemberNode = null)
+            ImmutableArray<(SyntaxNode, ISymbol)> selectedMembers = default)
         {
             OriginalType = originalType;
             OriginalTypeDeclarationNode = containingTypeDeclarationNode;
-            SelectedMember = selectedMember;
-            SelectedMemberNode = selectedMemberNode;
+            SelectedMembers = selectedMembers;
         }
 
         private ExtractMemberAnalysis()
