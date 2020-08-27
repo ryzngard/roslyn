@@ -72,20 +72,11 @@ namespace Microsoft.CodeAnalysis.ExtractMembers
                 return null;
             }
 
-            var containingType = selectedMember.ContainingType;
-
-            // Can't extract to a new type if there's already a base. Maybe
-            // in the future we could inject a new type inbetween base and
-            // current
-            if (containingType.BaseType?.SpecialType != SpecialType.System_Object)
-            {
-                return null;
-            }
-
             var syntaxFacts = document.GetRequiredLanguageService<ISyntaxFactsService>();
             var containingTypeDeclarationNode = selectedMemberNode.FirstAncestorOrSelf<SyntaxNode>(syntaxFacts.IsTypeDeclaration);
+            var containingType = selectedMember.ContainingType;
 
-            return new ExtractMemberAnalysis(containingType, containingTypeDeclarationNode, selectedMember);
+            return new ExtractMemberAnalysis(containingType, containingTypeDeclarationNode, selectedMember, selectedMemberNode);
         }
     }
 
@@ -96,15 +87,18 @@ namespace Microsoft.CodeAnalysis.ExtractMembers
         public INamedTypeSymbol? OriginalType { get; }
         public SyntaxNode? OriginalTypeDeclarationNode { get; }
         public ISymbol? SelectedMember { get; }
+        public SyntaxNode? SelectedMemberNode { get; }
 
         public ExtractMemberAnalysis(
             INamedTypeSymbol originalType,
             SyntaxNode? containingTypeDeclarationNode,
-            ISymbol? selectedMember = null)
+            ISymbol? selectedMember = null,
+            SyntaxNode? selectedMemberNode = null)
         {
             OriginalType = originalType;
             OriginalTypeDeclarationNode = containingTypeDeclarationNode;
             SelectedMember = selectedMember;
+            SelectedMemberNode = selectedMemberNode;
         }
 
         private ExtractMemberAnalysis()

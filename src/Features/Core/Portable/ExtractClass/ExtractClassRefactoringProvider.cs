@@ -49,6 +49,14 @@ namespace Microsoft.CodeAnalysis.ExtractClass
             Contract.ThrowIfNull(analysis.OriginalType);
             Contract.ThrowIfNull(analysis.OriginalTypeDeclarationNode);
 
+            // Can't extract to a new type if there's already a base. Maybe
+            // in the future we could inject a new type inbetween base and
+            // current
+            if (analysis.OriginalType.SpecialType != SpecialType.System_Object)
+            {
+                return;
+            }
+
             var action = new ExtractClassWithDialogCodeAction(document, span, optionsService, analysis.OriginalType, analysis.OriginalTypeDeclarationNode, analysis.SelectedMember);
             context.RegisterRefactoring(action, action.Span);
         }

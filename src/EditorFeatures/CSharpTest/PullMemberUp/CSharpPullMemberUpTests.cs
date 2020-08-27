@@ -5,7 +5,6 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CodeRefactorings;
-using Microsoft.CodeAnalysis.CSharp.CodeRefactorings.PullMemberUp;
 using Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.CodeRefactorings;
 using Microsoft.CodeAnalysis.Test.Utilities;
 using Xunit;
@@ -15,13 +14,14 @@ using Microsoft.CodeAnalysis.CodeRefactorings.PullMemberUp.Dialog;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis.Test.Utilities.PullMemberUp;
 using Roslyn.Test.Utilities;
+using Microsoft.CodeAnalysis.CodeRefactorings.PullMemberUp;
 
 namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.PullMemberUp
 {
     public class CSharpPullMemberUpTests : AbstractCSharpCodeActionTest
     {
         protected override CodeRefactoringProvider CreateCodeRefactoringProvider(Workspace workspace, TestParameters parameters)
-            => new CSharpPullMemberUpCodeRefactoringProvider((IPullMemberUpOptionsService)parameters.fixProviderData);
+            => new PullMemberUpRefactoringProvider((IPullMemberUpOptionsService)parameters.fixProviderData);
 
         protected override ImmutableArray<CodeAction> MassageActions(ImmutableArray<CodeAction> actions) => FlattenActions(actions);
 

@@ -14,7 +14,7 @@ using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CodeRefactorings.PullMemberUp
 {
-    internal abstract partial class AbstractPullMemberUpRefactoringProvider
+    internal partial class PullMemberUpRefactoringProvider
     {
         private class PullMemberUpWithDialogCodeAction : CodeActionWithOptions
         {
