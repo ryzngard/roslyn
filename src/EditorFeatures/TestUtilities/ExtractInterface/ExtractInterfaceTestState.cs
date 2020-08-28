@@ -67,6 +67,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.ExtractInterface
             return ExtractInterfaceService.AnalyzeTypeAtPositionAsync(
                 ExtractFromDocument,
                 _testDocument.CursorPosition.Value,
+                ExtractionBehavior.CodeAction,
                 CancellationToken.None);
         }
 
@@ -80,6 +81,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.ExtractInterface
                     this.ErrorMessage = errorMessage;
                     this.ErrorSeverity = severity;
                 },
+                ExtractionBehavior.Command,
                 CancellationToken.None);
         }
 

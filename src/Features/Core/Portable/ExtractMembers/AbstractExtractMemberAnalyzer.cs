@@ -43,7 +43,23 @@ namespace Microsoft.CodeAnalysis.ExtractMembers
             var selectedClassNode = await GetSelectedClassDeclarationAsync(document, span, cancellationToken).ConfigureAwait(false);
             if (selectedClassNode is null)
             {
-                return null;
+                // Check to see if the span is at the member level of a class
+                var root = await document.GetRequiredSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
+                var selectedNode = root.FindNode(span, findInsideTrivia: true);
+                var syntaxFacts = document.GetRequiredLanguageService<ISyntaxFactsService>();
+
+                selectedClassNode = selectedNode.FirstAncestorOrSelf<SyntaxNode>(syntaxFacts.IsTypeDeclaration);
+                if (selectedClassNode is null)
+                {
+                    return null;
+                }
+
+                var membersOfClass = syntaxFacts.GetMembersOfTypeDeclaration(selectedClassNode);
+                if (!membersOfClass.Contains(selectedNode))
+                {
+                    // The selected node is not member level for the class
+                    return null;
+                }
             }
 
             var semanticModel = await document.GetRequiredSemanticModelAsync(cancellationToken).ConfigureAwait(false);
@@ -74,7 +90,6 @@ namespace Microsoft.CodeAnalysis.ExtractMembers
 
             var syntaxFacts = document.GetRequiredLanguageService<ISyntaxFactsService>();
 
-            // We're guaranteed that all the members 
             var firstPair = selectedMemberNodeSymbolPairs.First();
             var containingTypeDeclarationNode = firstPair.node.FirstAncestorOrSelf<SyntaxNode>(syntaxFacts.IsTypeDeclaration);
             var containingType = firstPair.symbol.ContainingType;

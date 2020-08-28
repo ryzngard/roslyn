@@ -7,7 +7,6 @@ using System.Collections.Immutable;
 using System.Composition;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CodeRefactorings.PullMemberUp.Dialog;
 using Microsoft.CodeAnalysis.ExtractMembers;
@@ -72,12 +71,15 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.PullMemberUp
                 return;
             }
 
-            var allActions = validDestinations.Select(destination => MembersPuller.TryComputeCodeAction(document, validSelectedMembers, destination))
-                .WhereNotNull().Concat(new PullMemberUpWithDialogCodeAction(document, analyzerResult.OriginalType, validSelectedMembers, _service))
-                .ToImmutableArray();
-
             if (validSelectedMembers.Length == 1)
             {
+                // If only one member is being pulled up provide shortcuts as quick actions to do only that member 
+                // that won't show a dialog to the user.
+                // e.x: Pull "x" up to "IBase" 
+                var allActions = validDestinations.Select(destination => MembersPuller.TryComputeCodeAction(document, validSelectedMembers, destination))
+                   .WhereNotNull().Concat(new PullMemberUpWithDialogCodeAction(document, analyzerResult.OriginalType, validSelectedMembers, _service))
+                   .ToImmutableArray();
+
                 var selectedMember = validSelectedMembers.Single();
 
                 var nestedCodeAction = new CodeActionWithNestedActions(
@@ -85,6 +87,10 @@ namespace Microsoft.CodeAnalysis.CodeRefactorings.PullMemberUp
                     allActions, isInlinable: true);
 
                 context.RegisterRefactoring(nestedCodeAction, selectedMember.node.Span);
+            }
+            else
+            {
+                context.RegisterRefactoring(new PullMemberUpWithDialogCodeAction(document, analyzerResult.OriginalType, validSelectedMembers, _service));
             }
         }
     }
