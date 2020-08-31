@@ -36,22 +36,6 @@ class MyClass
         }
 
         [WpfFact, Trait(Traits.Feature, Traits.Features.ExtractInterface)]
-        public async Task ExtractInterface_Invocation_CaretAfterClassClosingBrace()
-        {
-            var markup = @"
-using System;
-class MyClass
-{
-    public void Goo()
-    {
-        
-    }
-}$$";
-
-            await TestExtractInterfaceCommandCSharpAsync(markup, expectedSuccess: true);
-        }
-
-        [WpfFact, Trait(Traits.Feature, Traits.Features.ExtractInterface)]
         public async Task ExtractInterface_Invocation_CaretBeforeClassKeyword()
         {
             var markup = @"
