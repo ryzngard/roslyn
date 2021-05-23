@@ -95,6 +95,7 @@ namespace Microsoft.CodeAnalysis.Diagnostics
         public const EnforceOnBuild ConsecutiveBracePlacement = /*IDE2002*/ EnforceOnBuild.WhenExplicitlyEnabled;
         public const EnforceOnBuild ConsecutiveStatementPlacement = /*IDE2003*/ EnforceOnBuild.WhenExplicitlyEnabled;
         public const EnforceOnBuild ConstructorInitializerPlacement = /*IDE2004*/ EnforceOnBuild.WhenExplicitlyEnabled;
+        public const EnforceOnBuild LocalFunctionShouldNotBeFollowedByExpressions = /*IDE0150*/ EnforceOnBuild.WhenExplicitlyEnabled;
 
         /* EnforceOnBuild.Never */
         // TODO: Allow enforcing simplify names and related diagnostics on build once we validate their performance charactericstics.
