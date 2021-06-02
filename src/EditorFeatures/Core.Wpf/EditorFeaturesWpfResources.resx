@@ -180,4 +180,20 @@
   <data name="Interactive_host_process_platform" xml:space="preserve">
     <value>Interactive host process platform</value>
   </data>
+  <data name="Adding_missing_imports" xml:space="preserve">
+    <value>Adding missing imports...</value>
+    <comment>Thread awaited dialog text. "imports" is a language specific term and should not be localized</comment>
+  </data>
+  <data name="Adding_missing_usings" xml:space="preserve">
+    <value>Adding missing usings...</value>
+    <comment>Shown in a thread await dialog. "usings" is a language specific term and should not be localized</comment>
+  </data>
+  <data name="Add_Missing_Imports_on_Paste" xml:space="preserve">
+    <value>Add Missing Imports on Paste</value>
+    <comment>"imports" is a language specific term and should not be localized</comment>
+  </data>
+  <data name="Add_Missing_Usings_on_Paste" xml:space="preserve">
+    <value>Add Missing Usings on Paste</value>
+    <comment>"usings" is a language specific term and should not be localized</comment>
+  </data>
 </root>

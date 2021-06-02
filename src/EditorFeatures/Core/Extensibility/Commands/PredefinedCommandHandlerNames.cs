@@ -175,6 +175,11 @@ namespace Microsoft.CodeAnalysis.Editor
         public const string AddImportsPaste = "Add Imports Paste Command Handler";
 
         /// <summary>
+        /// Command handler name for Copy in Add Imports.
+        /// </summary>
+        public const string AddImportsCopy = "Add Imports Copy Command Handler";
+
+        /// <summary>
         /// Command handler name for Edit and Continue file save handler.
         /// </summary>
         public const string EditAndContinueFileSave = "Edit and Continue Save File Handler";

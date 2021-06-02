@@ -4,6 +4,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Windows;
 using Microsoft.CodeAnalysis.AddMissingImports;
 using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
 using Microsoft.CodeAnalysis.Editor.Shared.Options;
@@ -130,10 +131,32 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
             // intended to tell us how long we're blocking the user from typing with this action. 
             using var blockLogger = Logger.LogBlock(FunctionId.CommandHandler_Paste_ImportsOnPaste, KeyValueLogMessage.Create(LogType.UserAction), cancellationToken);
 
-            var addMissingImportsService = document.GetRequiredLanguageService<IAddMissingImportsFeatureService>();
+            // Check if there is already import data in the clipboard
+            var clipboardData = Clipboard.GetDataObject();
+            var runAddImportsAsync = true;
+            Document? updatedDocument = null;
+
+            if (clipboardData.GetData(typeof(Guid)) is Guid guid)
+            {
+                var addImportsCacheService = document.Project.Solution.Workspace.Services.GetRequiredService<IAddImportsCopyCacheService>();
+                var cacheData = _threadingContext.JoinableTaskFactory.Run(() => addImportsCacheService.GetDataAsync(guid));
+                if (cacheData is not null)
+                {
+                    runAddImportsAsync = false;
+
+                    // Do something with it
+                }
+            }
+
+
+            if (runAddImportsAsync)
+            {
+                var addMissingImportsService = document.GetRequiredLanguageService<IAddMissingImportsFeatureService>();
 #pragma warning disable VSTHRD102 // Implement internal logic asynchronously
-            var updatedDocument = _threadingContext.JoinableTaskFactory.Run(() => addMissingImportsService.AddMissingImportsAsync(document, textSpan, cancellationToken));
+                updatedDocument = _threadingContext.JoinableTaskFactory.Run(() => addMissingImportsService.AddMissingImportsAsync(document, textSpan, cancellationToken));
 #pragma warning restore VSTHRD102 // Implement internal logic asynchronously
+            }
+
             if (updatedDocument is null)
             {
                 return;

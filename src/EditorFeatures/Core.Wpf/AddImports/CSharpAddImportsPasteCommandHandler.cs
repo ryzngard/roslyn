@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.VisualStudio.Commanding;
 using Microsoft.VisualStudio.Utilities;
 
-namespace Microsoft.CodeAnalysis.Editor.CSharp.AddImports
+namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
 {
     [Export]
     [Export(typeof(ICommandHandler))]
@@ -32,7 +32,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.AddImports
         {
         }
 
-        public override string DisplayName => CSharpEditorResources.Add_Missing_Usings_on_Paste;
-        protected override string DialogText => CSharpEditorResources.Adding_missing_usings;
+        public override string DisplayName => EditorFeaturesWpfResources.Add_Missing_Usings_on_Paste;
+        protected override string DialogText => EditorFeaturesWpfResources.Adding_missing_usings;
     }
 }
