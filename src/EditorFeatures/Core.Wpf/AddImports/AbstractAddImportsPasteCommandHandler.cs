@@ -119,10 +119,10 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
             var enabled = optionValue.HasValue && optionValue.Value
                 || experimentationService.IsExperimentEnabled(WellKnownExperimentNames.ImportsOnPasteDefaultEnabled);
 
-            if (!enabled)
-            {
-                return;
-            }
+            //if (!enabled)
+            //{
+            //    return;
+            //}
 
             using var _ = executionContext.OperationContext.AddScope(allowCancellation: true, DialogText);
             var cancellationToken = executionContext.OperationContext.UserCancellationToken;
@@ -136,16 +136,12 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
             var runAddImportsAsync = true;
             Document? updatedDocument = null;
 
-            if (clipboardData.GetData(typeof(Guid)) is Guid guid)
+            var data = clipboardData.GetData(ImportMetadataCopyCommandHandler.ClipboardDataFormat);
+            if (data is not null)
             {
-                var addImportsCacheService = document.Project.Solution.Workspace.Services.GetRequiredService<IAddImportsCopyCacheService>();
-                var cacheData = _threadingContext.JoinableTaskFactory.Run(() => addImportsCacheService.GetDataAsync(guid));
-                if (cacheData is not null)
-                {
-                    runAddImportsAsync = false;
+                runAddImportsAsync = false;
 
-                    // Do something with it
-                }
+                // Do something with it
             }
 
 

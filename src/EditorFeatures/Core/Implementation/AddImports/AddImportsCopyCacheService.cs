@@ -30,23 +30,22 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
 
         private readonly Workspace _workspace;
 
-        // TODO: Change this to the actual items that will be returned from the cache
-        private readonly Dictionary<object, Task<ImmutableArray<SyntaxNode>>> _cache = new();
+        private readonly Dictionary<AddImportsCacheIdentifier, Task<ImmutableArray<SyntaxNode>>> _cache = new();
 
         public AddImportsCopyCacheService(Workspace workspace)
         {
             _workspace = workspace;
         }
 
-        public Guid AddSelectionToCache(Document document, ImmutableArray<TextSpan> textSpans, CancellationToken cancellationToken)
+        public AddImportsCacheIdentifier AddSelectionToCache(Document document, ImmutableArray<TextSpan> textSpans, CancellationToken cancellationToken)
         {
             var storageService = _workspace.Services.GetRequiredService<ITemporaryStorageService>();
             var storage = storageService.CreateTemporaryStreamStorage(cancellationToken);
 
-            var guid = Guid.NewGuid();
             var documentId = document.Id;
+            var identifier = new AddImportsCacheIdentifier(document);
 
-            _cache[guid] = Task.Run(async () =>
+            _cache[identifier] = Task.Run(async () =>
             {
                 var document = _workspace.CurrentSolution.GetRequiredDocument(documentId);
                 var root = await document.GetRequiredSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
@@ -58,10 +57,10 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
                 return nodes;
             }, cancellationToken);
 
-            return guid;
+            return identifier;
         }
 
-        public async Task<object?> GetDataAsync(Guid identifier)
+        public async Task<object?> GetDataAsync(AddImportsCacheIdentifier identifier)
         {
             if (!_cache.TryGetValue(identifier, out var task))
             {

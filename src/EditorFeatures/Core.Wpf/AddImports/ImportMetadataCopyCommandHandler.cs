@@ -22,8 +22,10 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
     [Export(typeof(ICommandHandler))]
     [ContentType(ContentTypeNames.CSharpContentType)]
     [Name(PredefinedCommandHandlerNames.AddImportsPaste)]
-    internal sealed class ImportMetadataCopyCommandHandler : ICommandHandler<CopyCommandArgs>
+    internal sealed partial class ImportMetadataCopyCommandHandler : ICommandHandler<CopyCommandArgs>
     {
+        public const string ClipboardDataFormat = "add usings clipboard data";
+
         [ImportingConstructor]
         [Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
         public ImportMetadataCopyCommandHandler()
@@ -65,10 +67,10 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
             var enabled = optionValue.HasValue && optionValue.Value
                 || experimentationService.IsExperimentEnabled(WellKnownExperimentNames.ImportsOnPasteDefaultEnabled);
 
-            if (!enabled)
-            {
-                return false;
-            }
+            //if (!enabled)
+            //{
+            //    return false;
+            //}
 
             var addImportsCopyCacheService = document.Project.Solution.Workspace.Services.GetService<IAddImportsCopyCacheService>();
             if (addImportsCopyCacheService is null)
@@ -82,7 +84,9 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
             // Add an object to the cache computing the necessary usings for the selection
             var token = addImportsCopyCacheService.AddSelectionToCache(document, textSpans, executionContext.OperationContext.UserCancellationToken);
 
-            Clipboard.SetDataObject(token);
+            var dataObject = new LazyDataObject(Clipboard.GetDataObject(), token, addImportsCopyCacheService);
+            Clipboard.Clear();
+            Clipboard.SetDataObject(dataObject);
 
             return true;
         }
