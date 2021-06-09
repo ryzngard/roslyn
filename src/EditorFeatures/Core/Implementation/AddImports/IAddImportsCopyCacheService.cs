@@ -17,7 +17,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
     {
         AddImportsCacheIdentifier AddSelectionToCache(Document document, ImmutableArray<TextSpan> textSpans, CancellationToken cancellationToken);
 
-        Task<object?> GetDataAsync(AddImportsCacheIdentifier identifier);
+        Task<ImmutableArray<SymbolKey>> GetDataAsync(AddImportsCacheIdentifier identifier);
     }
 
     internal readonly struct AddImportsCacheIdentifier

@@ -30,7 +30,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
 
         private readonly Workspace _workspace;
 
-        private readonly Dictionary<AddImportsCacheIdentifier, Task<ImmutableArray<SyntaxNode>>> _cache = new();
+        private readonly Dictionary<AddImportsCacheIdentifier, Task<ImmutableArray<SymbolKey>>> _cache = new();
 
         public AddImportsCopyCacheService(Workspace workspace)
         {
@@ -52,9 +52,17 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
 
                 var nodes = textSpans.SelectAsArray(span => root.FindNode(span));
 
-                // TODO: Actually get the usings here based on the nodes selected
+                // find the referenced symbols
+                var semanticModel = await document.GetRequiredSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+                using var _ = PooledObjects.ArrayBuilder<SymbolKey>.GetInstance(out var builder);
 
-                return nodes;
+                foreach (var node in nodes)
+                {
+                    builder.AddRange(GetSymbolKeys(node, semanticModel, cancellationToken));
+                }
+
+                return builder.ToImmutable();
+
             }, cancellationToken);
 
             return identifier;
@@ -68,6 +76,11 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
             }
 
             return await task.ConfigureAwait(false);
+        }
+
+        private static ImmutableArray<SymbolKey> GetSymbolKeys(SyntaxNode node, SemanticModel semanticModel, CancellationToken cancellationToken)
+        {
+            return ImmutableArray<SymbolKey>.Empty;
         }
     }
 }

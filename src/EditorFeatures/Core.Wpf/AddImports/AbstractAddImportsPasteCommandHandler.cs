@@ -3,7 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Threading;
 using System.Windows;
 using Microsoft.CodeAnalysis.AddMissingImports;
 using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
@@ -119,10 +121,10 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
             var enabled = optionValue.HasValue && optionValue.Value
                 || experimentationService.IsExperimentEnabled(WellKnownExperimentNames.ImportsOnPasteDefaultEnabled);
 
-            //if (!enabled)
-            //{
-            //    return;
-            //}
+            if (!enabled)
+            {
+                return;
+            }
 
             using var _ = executionContext.OperationContext.AddScope(allowCancellation: true, DialogText);
             var cancellationToken = executionContext.OperationContext.UserCancellationToken;
@@ -133,24 +135,17 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
 
             // Check if there is already import data in the clipboard
             var clipboardData = Clipboard.GetDataObject();
-            var runAddImportsAsync = true;
             Document? updatedDocument = null;
 
             var data = clipboardData.GetData(ImportMetadataCopyCommandHandler.ClipboardDataFormat);
-            if (data is not null)
+            if (data is ImmutableArray<SymbolKey> symbolKeys && !symbolKeys.IsDefaultOrEmpty)
             {
-                runAddImportsAsync = false;
-
                 // Do something with it
+                updatedDocument = AddImportsFromSymbolKeysSynchronously(document, textSpan, symbolKeys, cancellationToken);
             }
-
-
-            if (runAddImportsAsync)
+            else
             {
-                var addMissingImportsService = document.GetRequiredLanguageService<IAddMissingImportsFeatureService>();
-#pragma warning disable VSTHRD102 // Implement internal logic asynchronously
-                updatedDocument = _threadingContext.JoinableTaskFactory.Run(() => addMissingImportsService.AddMissingImportsAsync(document, textSpan, cancellationToken));
-#pragma warning restore VSTHRD102 // Implement internal logic asynchronously
+                updatedDocument = AddImportsWithServiceSynchronously(document, textSpan, cancellationToken);
             }
 
             if (updatedDocument is null)
@@ -159,6 +154,45 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
             }
 
             workspace.TryApplyChanges(updatedDocument.Project.Solution);
+        }
+
+        private Document? AddImportsFromSymbolKeysSynchronously(Document document, TextSpan textSpan, ImmutableArray<SymbolKey> symbolKeys, CancellationToken cancellationToken)
+        {
+            if (symbolKeys.IsDefaultOrEmpty)
+            {
+                return null;
+            }
+
+            var addMissingImportsService = document.GetRequiredLanguageService<IAddMissingImportsFeatureService>();
+            var semanticModel = _threadingContext.JoinableTaskFactory.Run(async () => await document.GetRequiredSemanticModelAsync(cancellationToken).ConfigureAwait(false));
+            using var _ = PooledObjects.ArrayBuilder<ISymbol>.GetInstance(out var builder);
+
+            foreach (var symbolKey in symbolKeys)
+            {
+                var resolution = symbolKey.Resolve(semanticModel.Compilation, ignoreAssemblyKey: true, cancellationToken);
+                var symbol = resolution.GetAnySymbol();
+
+                if (symbol is null)
+                    continue;
+
+                builder.Add(symbol);
+            }
+
+            var symbolsToAdd = builder.ToImmutable();
+            if (symbolsToAdd.IsDefaultOrEmpty)
+            {
+                return null;
+            }
+
+            return _threadingContext.JoinableTaskFactory.Run(addMissingImportsService.AddMissingImportsAsync(document, symbolsToAdd, cancellationToken));
+        }
+
+        private Document AddImportsWithServiceSynchronously(Document document, TextSpan textSpan, CancellationToken cancellationToken)
+        {
+            var addMissingImportsService = document.GetRequiredLanguageService<IAddMissingImportsFeatureService>();
+#pragma warning disable VSTHRD102 // Implement internal logic asynchronously
+            return _threadingContext.JoinableTaskFactory.Run(() => addMissingImportsService.AddMissingImportsAsync(document, textSpan, cancellationToken));
+#pragma warning restore VSTHRD102 // Implement internal logic asynchronously
         }
     }
 }
