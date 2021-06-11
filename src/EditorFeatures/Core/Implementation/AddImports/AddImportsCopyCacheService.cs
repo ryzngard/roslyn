@@ -6,10 +6,12 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.Host.Mef;
+using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.CodeAnalysis.Text;
 
@@ -52,7 +54,6 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
 
                 var nodes = textSpans.SelectAsArray(span => root.FindNode(span));
 
-                // find the referenced symbols
                 var semanticModel = await document.GetRequiredSemanticModelAsync(cancellationToken).ConfigureAwait(false);
                 using var _ = PooledObjects.ArrayBuilder<SymbolKey>.GetInstance(out var builder);
 
@@ -68,11 +69,11 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
             return identifier;
         }
 
-        public async Task<object?> GetDataAsync(AddImportsCacheIdentifier identifier)
+        public async Task<ImmutableArray<SymbolKey>> GetDataAsync(AddImportsCacheIdentifier identifier)
         {
             if (!_cache.TryGetValue(identifier, out var task))
             {
-                return null;
+                return ImmutableArray<SymbolKey>.Empty;
             }
 
             return await task.ConfigureAwait(false);
@@ -80,7 +81,63 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.AddImports
 
         private static ImmutableArray<SymbolKey> GetSymbolKeys(SyntaxNode node, SemanticModel semanticModel, CancellationToken cancellationToken)
         {
-            return ImmutableArray<SymbolKey>.Empty;
+            var usedSymbols = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+
+            var visitor = new Visitor(usedSymbols);
+            visitor.Visit(semanticModel.GetOperation(node, cancellationToken));
+
+            return usedSymbols.Select(s => s.GetSymbolKey(cancellationToken)).ToImmutableArray();
+        }
+
+        private class Visitor : OperationVisitor
+        {
+            private readonly HashSet<ISymbol> _usedSymbols;
+
+            public Visitor(HashSet<ISymbol> usedSymbolSet)
+            {
+                _usedSymbols = usedSymbolSet;
+            }
+
+            private void AddIfNotNull(ISymbol? symbol)
+            {
+                if (symbol is null)
+                    return;
+
+                _usedSymbols.Add(symbol);
+            }
+
+            public override void VisitInvocation(IInvocationOperation operation)
+            {
+                base.VisitInvocation(operation);
+                AddIfNotNull(operation.TargetMethod.ContainingType);
+            }
+
+            public override void VisitVariableDeclaration(IVariableDeclarationOperation operation)
+            {
+                base.VisitVariableDeclaration(operation);
+                AddIfNotNull(operation.Type);
+            }
+
+            public override void VisitMethodBodyOperation(IMethodBodyOperation operation)
+            {
+                base.VisitMethodBodyOperation(operation);
+
+                if (operation.SemanticModel is null)
+                {
+                    return;
+                }
+
+                var declaredMethod = operation.SemanticModel.GetDeclaredSymbol(operation.Syntax);
+                if (declaredMethod is not IMethodSymbol)
+                {
+                    return;
+                }
+
+                if (declaredMethod.IsStatic)
+                {
+                    AddIfNotNull(declaredMethod.ContainingSymbol);
+                }
+            }
         }
     }
 }
