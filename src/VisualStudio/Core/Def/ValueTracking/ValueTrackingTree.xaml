@@ -37,16 +37,15 @@
             Visibility="{Binding IsLoading, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"
             Foreground="{DynamicResource {x:Static vs:ProgressBarColors.IndicatorFillBrushKey}}"
             Background="{DynamicResource {x:Static vs:ProgressBarColors.BackgroundBrushKey}}" />
-        
+
         <ScrollViewer Grid.Row="1" Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-            <TreeView  x:Name="ValueTrackingTreeView" ItemsSource="{Binding Roots}" SelectedItemChanged="ValueTrackingTreeView_SelectedItemChanged" BorderThickness="0">
-                <TreeView.ItemContainerStyle>
-                    <Style TargetType="{x:Type TreeViewItem}">
-                        <Setter Property="IsExpanded" Value="{Binding IsNodeExpanded, Mode=TwoWay}" />
-                        <Setter Property="IsSelected" Value="{Binding IsNodeSelected, Mode=TwoWay}" />
-                    </Style>
-                </TreeView.ItemContainerStyle>
+            <TreeView  
+                x:Name="ValueTrackingTreeView" 
+                ItemsSource="{Binding Roots}" 
+                SelectedItemChanged="ValueTrackingTreeView_SelectedItemChanged" 
+                BorderThickness="0">
                 <TreeView.Resources>
+                    <SolidColorBrush x:Key="ItemSelectionBrush" Color="Purple" />
                     <HierarchicalDataTemplate DataType="{x:Type local:TreeItemViewModel}" ItemsSource="{Binding ChildItems}">
                         <StackPanel Orientation="Horizontal">
                             <Image Source="{Binding GlyphImage}" />
@@ -66,6 +65,17 @@
                         </StackPanel>
                     </DataTemplate>
                 </TreeView.Resources>
+                <TreeView.ItemContainerStyle>
+                    <Style TargetType="{x:Type TreeViewItem}">
+                        <Setter Property="IsExpanded" Value="{Binding IsNodeExpanded, Mode=TwoWay}" />
+                        <Setter Property="IsSelected" Value="{Binding IsNodeSelected, Mode=TwoWay}" />
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background"  Value="{StaticResource ResourceKey=ItemSelectionBrush}" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </TreeView.ItemContainerStyle>
             </TreeView>
         </ScrollViewer>
 

@@ -1770,4 +1770,7 @@ I agree to all of the foregoing:</value>
   <data name="Underline_reassigned_variables" xml:space="preserve">
     <value>Underline reassigned variables</value>
   </data>
+  <data name="Select_an_appropriate_symbol_to_start_value_tracking" xml:space="preserve">
+    <value>Select an appropriate symbol to start value tracking</value>
+  </data>
 </root>
