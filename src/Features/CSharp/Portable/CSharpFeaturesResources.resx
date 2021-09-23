@@ -618,4 +618,8 @@
   <data name="record_struct" xml:space="preserve">
     <value>record struct</value>
   </data>
+  <data name="Fix_nullable_context" xml:space="preserve">
+    <value>Fix nullable context</value>
+    <comment>"nullable" is a language term</comment>
+  </data>
 </root>

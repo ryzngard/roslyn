@@ -122,6 +122,11 @@
         <target state="translated">Zadeklaruj jako dopuszczający wartość null</target>
         <note />
       </trans-unit>
+      <trans-unit id="Fix_nullable_context">
+        <source>Fix nullable context</source>
+        <target state="new">Fix nullable context</target>
+        <note>"nullable" is a language term</note>
+      </trans-unit>
       <trans-unit id="Fix_return_type">
         <source>Fix return type</source>
         <target state="translated">Napraw zwracany typ</target>
