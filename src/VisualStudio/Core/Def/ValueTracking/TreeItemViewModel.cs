@@ -18,6 +18,7 @@ using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.LanguageServices.Implementation.Utilities;
+using Microsoft.VisualStudio.Text.Classification;
 
 namespace Microsoft.VisualStudio.LanguageServices.ValueTracking
 {
@@ -27,6 +28,8 @@ namespace Microsoft.VisualStudio.LanguageServices.ValueTracking
         private readonly Glyph _glyph;
         private readonly IGlyphService _glyphService;
 
+        protected ClassificationTypeMap TypeMap { get; }
+        protected IClassificationFormatMap FormatMap { get; }
         protected ValueTrackingTreeViewModel TreeViewModel { get; }
         protected TextSpan TextSpan { get; }
         protected LineSpan LineSpan { get; }
@@ -56,6 +59,8 @@ namespace Microsoft.VisualStudio.LanguageServices.ValueTracking
             ValueTrackingTreeViewModel treeViewModel,
             IGlyphService glyphService,
             IThreadingContext threadingContext,
+            IClassificationFormatMap formatMap,
+            ClassificationTypeMap typeMap,
             Workspace workspace,
             ImmutableArray<TreeItemViewModel> children = default)
             : base()
@@ -66,7 +71,8 @@ namespace Microsoft.VisualStudio.LanguageServices.ValueTracking
             ClassifiedSpans = classifiedSpans;
             TreeViewModel = treeViewModel;
             ThreadingContext = threadingContext;
-
+            FormatMap = formatMap;
+            TypeMap = typeMap;
             _glyph = glyph;
             _glyphService = glyphService;
             Workspace = workspace;
@@ -136,8 +142,8 @@ namespace Microsoft.VisualStudio.LanguageServices.ValueTracking
             var highlightSpan = new TextSpan(spanStartPosition, TextSpan.Length);
 
             return classifiedTexts.ToInlines(
-                TreeViewModel.ClassificationFormatMap,
-                TreeViewModel.ClassificationTypeMap,
+                FormatMap,
+                TypeMap,
                 (run, classifiedText, position) =>
                 {
                     if (TreeViewModel.HighlightBrush is not null)

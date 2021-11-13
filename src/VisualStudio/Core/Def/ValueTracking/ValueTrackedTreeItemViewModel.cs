@@ -12,8 +12,8 @@ using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.CodeAnalysis.ValueTracking;
 using Microsoft.VisualStudio.Language.Intellisense;
-using Microsoft.CodeAnalysis.PooledObjects;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Text.Classification;
 
 namespace Microsoft.VisualStudio.LanguageServices.ValueTracking
 {
@@ -41,6 +41,8 @@ namespace Microsoft.VisualStudio.LanguageServices.ValueTracking
             ValueTrackingTreeViewModel treeViewModel,
             IGlyphService glyphService,
             IValueTrackingService valueTrackingService,
+            IClassificationFormatMap formatMap,
+            ClassificationTypeMap typeMap,
             IThreadingContext threadingContext,
             string fileName,
             ImmutableArray<TreeItemViewModel> children = default)
@@ -54,6 +56,8 @@ namespace Microsoft.VisualStudio.LanguageServices.ValueTracking
                   treeViewModel,
                   glyphService,
                   threadingContext,
+                  formatMap,
+                  typeMap,
                   solution.Workspace,
                   children: children)
         {
@@ -153,6 +157,8 @@ namespace Microsoft.VisualStudio.LanguageServices.ValueTracking
                     TreeViewModel,
                     _glyphService,
                     _valueTrackingService,
+                    FormatMap,
+                    TypeMap,
                     ThreadingContext,
                     fileName
                     ));
