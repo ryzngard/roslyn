@@ -30,7 +30,8 @@ namespace Microsoft.CodeAnalysis.EmbeddedLanguages.StackFrame
             _lexer = lexer;
         }
 
-        private StackFrameToken CurrentCharAsToken() => _lexer.CurrentCharAsToken();
+        // CYRUSN: Invoke lightbulb on next line, hover over "Replace 'CurrentCharAsToken' with method"
+        private StackFrameToken CurrentCharAsToken => _lexer.CurrentCharAsToken();
 
         /// <summary>
         /// Given an input text, and set of options, parses out a fully representative syntax tree 
