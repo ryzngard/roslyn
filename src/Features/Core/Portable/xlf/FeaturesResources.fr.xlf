@@ -2605,6 +2605,11 @@ Les assertions arrière positives de largeur nulle sont généralement utilisée
         <target state="translated">Diviser en instructions '{0}' imbriquées</target>
         <note />
       </trans-unit>
+      <trans-unit id="StackFrame_Word_At">
+        <source>at</source>
+        <target state="new">at</target>
+        <note>Used in stack frames. See https://github.com/dotnet/runtime/blob/110cb9fe9189dc5d65eb517313dda3247c1bbbae/src/libraries/System.Private.CoreLib/src/Resources/Strings.resx#L3451 </note>
+      </trans-unit>
       <trans-unit id="StreamMustSupportReadAndSeek">
         <source>Stream must support read and seek operations.</source>
         <target state="translated">Le flux doit prendre en charge les opérations de lecture et de recherche.</target>

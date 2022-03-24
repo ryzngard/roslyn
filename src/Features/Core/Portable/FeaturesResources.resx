@@ -3211,4 +3211,8 @@ Zero-width positive lookbehind assertions are typically used at the beginning of
   <data name="Sort_Imports_or_usings" xml:space="preserve">
     <value>Sort Imports or usings</value>
   </data>
+  <data name="StackFrame_Word_At" xml:space="preserve">
+    <value>at</value>
+    <comment>Used in stack frames. See https://github.com/dotnet/runtime/blob/110cb9fe9189dc5d65eb517313dda3247c1bbbae/src/libraries/System.Private.CoreLib/src/Resources/Strings.resx#L3451 </comment>
+  </data>
 </root>

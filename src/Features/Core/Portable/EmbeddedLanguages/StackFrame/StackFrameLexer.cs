@@ -3,8 +3,10 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using Microsoft.CodeAnalysis.EmbeddedLanguages.Common;
 using Microsoft.CodeAnalysis.EmbeddedLanguages.VirtualChars;
@@ -20,8 +22,27 @@ namespace Microsoft.CodeAnalysis.EmbeddedLanguages.StackFrame
 
     internal struct StackFrameLexer
     {
+        private string? _cultureKey;
         public readonly VirtualCharSequence Text;
         public int Position { get; private set; }
+
+        private static Lazy<StackFrameStrings> StringDefinitions = new(
+            CreateStrings,
+            isThreadSafe: false);
+
+        private static StackFrameStrings CreateStrings()
+        {
+            var strings = new (string cultureInfo, string atString, string lineString)[]
+            {
+                ("en-us", "at ", "in {0}:line {1}")
+            };
+
+            return new StackFrameStrings(
+                strings.ToImmutableDictionary(keySelector: s => s.cultureInfo, elementSelector: s => s.atString),
+                strings.ToImmutableDictionary(keySelector: s => s.cultureInfo, elementSelector: s => s.lineString));
+        }
+
+        private record StackFrameStrings(ImmutableDictionary<string, string> AtStrings, ImmutableDictionary<string, string> InFileStrings);
 
         private StackFrameLexer(string text)
             : this(VirtualCharSequence.Create(0, text))
@@ -182,8 +203,24 @@ namespace Microsoft.CodeAnalysis.EmbeddedLanguages.StackFrame
         }
 
         public StackFrameTrivia? TryScanAtTrivia()
-            // TODO: Handle multiple languages? Right now we're going to only parse english
-            => TryScanStringTrivia("at ", StackFrameKind.AtTrivia);
+        {
+            if (_cultureKey is not null)
+            {
+                return TryScanStringTrivia(StringDefinitions.Value.AtStrings[_cultureKey], StackFrameKind.AtTrivia);
+            }
+
+            foreach (var cultureKey in StringDefinitions.Value.AtStrings.Keys)
+            {
+                var trivia = TryScanStringTrivia(StringDefinitions.Value.AtStrings[cultureKey], StackFrameKind.AtTrivia);
+                if (trivia.HasValue)
+                {
+                    _cultureKey = cultureKey;
+                    return trivia;
+                }
+            }
+
+            return null;
+        }
 
         public StackFrameTrivia? TryScanInTrivia()
             // TODO: Handle multiple languages? Right now we're going to only parse english
