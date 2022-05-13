@@ -5,6 +5,7 @@
 using System;
 using System.ComponentModel.Composition;
 using Microsoft.CodeAnalysis.AddImport;
+using Microsoft.CodeAnalysis.CopyData;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Options;
@@ -30,8 +31,8 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.AddImports
     {
         [ImportingConstructor]
         [Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
-        public CSharpAddImportsPasteCommandHandler(IThreadingContext threadingContext, IGlobalOptionService globalOptions, IAsynchronousOperationListenerProvider listnerProvider)
-            : base(threadingContext, globalOptions, listnerProvider)
+        public CSharpAddImportsPasteCommandHandler(IThreadingContext threadingContext, IGlobalOptionService globalOptions, IAsynchronousOperationListenerProvider listnerProvider, ICopyDataService copyDataService)
+            : base(threadingContext, globalOptions, listnerProvider, copyDataService)
         {
         }
 

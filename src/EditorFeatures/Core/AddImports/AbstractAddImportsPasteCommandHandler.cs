@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.AddMissingImports;
 using Microsoft.CodeAnalysis.CodeCleanup;
 using Microsoft.CodeAnalysis.Completion;
+using Microsoft.CodeAnalysis.CopyData;
 using Microsoft.CodeAnalysis.Editor.BackgroundWorkIndicator;
 using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
 using Microsoft.CodeAnalysis.Editor.Shared.Options;
@@ -39,15 +40,18 @@ namespace Microsoft.CodeAnalysis.AddImport
 
         private readonly IThreadingContext _threadingContext;
         private readonly IGlobalOptionService _globalOptions;
+        private readonly ICopyDataService _copyDataService;
         private readonly IAsynchronousOperationListener _listener;
 
         public AbstractAddImportsPasteCommandHandler(
             IThreadingContext threadingContext,
             IGlobalOptionService globalOptions,
-            IAsynchronousOperationListenerProvider listenerProvider)
+            IAsynchronousOperationListenerProvider listenerProvider,
+            ICopyDataService copyDataService)
         {
             _threadingContext = threadingContext;
             _globalOptions = globalOptions;
+            _copyDataService = copyDataService;
             _listener = listenerProvider.GetListener(FeatureAttribute.AddImportsOnPaste);
         }
 
@@ -66,6 +70,14 @@ namespace Microsoft.CodeAnalysis.AddImport
             // Capture the pre-paste caret position
             var caretPosition = args.TextView.GetCaretPoint(args.SubjectBuffer);
             if (!caretPosition.HasValue)
+            {
+                nextCommandHandler();
+                return;
+            }
+
+            // Check if we're copying and pasting inside the same document
+            var copyData = _copyDataService.TryGetData();
+            if (copyData?.TextView == args.TextView)
             {
                 nextCommandHandler();
                 return;

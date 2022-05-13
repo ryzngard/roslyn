@@ -24,8 +24,9 @@ Namespace Microsoft.CodeAnalysis.Editor.VisualBasic.AddImports
         <Obsolete(MefConstruction.ImportingConstructorMessage, True)>
         Public Sub New(threadingContext As [Shared].Utilities.IThreadingContext,
                        globalOptions As IGlobalOptionService,
-                       listenerProvider As IAsynchronousOperationListenerProvider)
-            MyBase.New(threadingContext, globalOptions, listenerProvider)
+                       listenerProvider As IAsynchronousOperationListenerProvider,
+                       copyDataService As CopyData.ICopyDataService)
+            MyBase.New(threadingContext, globalOptions, listenerProvider, copyDataService)
         End Sub
 
         Public Overrides ReadOnly Property DisplayName As String = VBEditorResources.Add_Missing_Imports_on_Paste
