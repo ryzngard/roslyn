@@ -602,6 +602,20 @@ namespace Microsoft.CodeAnalysis.AddImport
                     var symbol = namespaceResult.Symbol;
                     var mappedResult = namespaceResult.WithSymbol(MapToCompilationNamespaceIfPossible(namespaceResult.Symbol));
                     var namespaceIsInScope = _namespacesInScope.Contains(mappedResult.Symbol);
+
+                    if (_options.HidePotentialConflicts)
+                    {
+                        var desiredTypeName = mappedResult.DesiredName;
+                        var wouldAddConflict = _namespacesInScope
+                            .SelectMany(n => n.GetMembers())
+                            .Where(m => m.IsType || m.IsNamespace)
+                            .Any(m => m.CanBeReferencedByName && m.Name == desiredTypeName);
+
+                        if (wouldAddConflict)
+                        {
+                            continue;
+                        }
+                    }
                     if (!symbol.IsGlobalNamespace && !namespaceIsInScope)
                         references.Add(scope.CreateReference(mappedResult));
                 }

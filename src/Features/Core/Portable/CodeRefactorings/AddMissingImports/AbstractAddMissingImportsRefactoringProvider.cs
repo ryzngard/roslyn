@@ -40,7 +40,8 @@ namespace Microsoft.CodeAnalysis.AddMissingImports
             var cleanupOptions = await document.GetCodeCleanupOptionsAsync(context.Options, cancellationToken).ConfigureAwait(false);
             var options = new AddMissingImportsOptions(
                 cleanupOptions,
-                context.Options.GetOptions(document.Project.Services).HideAdvancedMembers);
+                context.Options.GetOptions(document.Project.Services).HideAdvancedMembers,
+                HidePotentialConflicts: false);
 
             var analysis = await addMissingImportsService.AnalyzeAsync(document, textSpan, options, cancellationToken).ConfigureAwait(false);
             if (!analysis.CanAddMissingImports)

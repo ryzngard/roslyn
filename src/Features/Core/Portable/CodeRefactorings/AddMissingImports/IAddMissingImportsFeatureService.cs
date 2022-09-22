@@ -15,7 +15,8 @@ namespace Microsoft.CodeAnalysis.AddMissingImports
     [DataContract]
     internal readonly record struct AddMissingImportsOptions(
         [property: DataMember(Order = 0)] CodeCleanupOptions CleanupOptions,
-        [property: DataMember(Order = 1)] bool HideAdvancedMembers);
+        [property: DataMember(Order = 1)] bool HideAdvancedMembers,
+        [property: DataMember(Order = 2)] bool HidePotentialConflicts);
 
     internal interface IAddMissingImportsFeatureService : ILanguageService
     {

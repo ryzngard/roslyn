@@ -59,7 +59,8 @@ internal class UnitTestGeneratorAddMissingImportsFeatureServiceAccessor
 
         var options = new AddMissingImportsOptions(
             CleanupOptions: cleanupOptions,
-            HideAdvancedMembers: _globalOptions.GetOption(CompletionOptionsStorage.HideAdvancedMembers, document.Project.Language));
+            HideAdvancedMembers: _globalOptions.GetOption(CompletionOptionsStorage.HideAdvancedMembers, document.Project.Language),
+            HidePotentialConflicts: false);
 
         return options;
     }

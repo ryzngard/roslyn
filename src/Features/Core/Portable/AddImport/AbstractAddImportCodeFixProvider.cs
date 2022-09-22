@@ -78,7 +78,8 @@ namespace Microsoft.CodeAnalysis.AddImport
             var addImportOptions = new AddImportOptions(
                 searchOptions,
                 cleanupOptions,
-                codeActionOptions.HideAdvancedMembers);
+                codeActionOptions.HideAdvancedMembers,
+                HidePotentialConflicts: false);
 
             var fixesForDiagnostic = await addImportService.GetFixesForDiagnosticsAsync(
                 document, span, diagnostics, MaxResults, symbolSearchService, addImportOptions, packageSources, cancellationToken).ConfigureAwait(false);

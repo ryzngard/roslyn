@@ -19,7 +19,8 @@ namespace Microsoft.CodeAnalysis.AddImport
     internal readonly record struct AddImportOptions(
         [property: DataMember(Order = 0)] SymbolSearchOptions SearchOptions,
         [property: DataMember(Order = 1)] CodeCleanupOptions CleanupOptions,
-        [property: DataMember(Order = 2)] bool HideAdvancedMembers);
+        [property: DataMember(Order = 2)] bool HideAdvancedMembers,
+        [property: DataMember(Order = 3)] bool HidePotentialConflicts);
 
     internal interface IAddImportFeatureService : ILanguageService
     {

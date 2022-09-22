@@ -159,7 +159,8 @@ namespace Microsoft.CodeAnalysis.AddImport
 
             var options = new AddMissingImportsOptions(
                 CleanupOptions: cleanupOptions,
-                HideAdvancedMembers: _globalOptions.GetOption(CompletionOptionsStorage.HideAdvancedMembers, document.Project.Language));
+                HideAdvancedMembers: _globalOptions.GetOption(CompletionOptionsStorage.HideAdvancedMembers, document.Project.Language),
+                HidePotentialConflicts: true);
 
             var textSpan = snapshotSpan.Span.ToTextSpan();
             var updatedDocument = await addMissingImportsService.AddMissingImportsAsync(document, textSpan, options, cancellationToken).ConfigureAwait(false);
