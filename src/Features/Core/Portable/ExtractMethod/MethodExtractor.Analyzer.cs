@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
@@ -260,7 +261,7 @@ namespace Microsoft.CodeAnalysis.ExtractMethod
                     }
                     else if (returnVariablesCount == parameters.Length)
                     {
-                        compilation.GetTypeByMetadataName($"System.Tuple`{parameters.Length}");
+                        returnType = compilation.GetTypeByMetadataName($"System.ValueTuple`{parameters.Length}");
                     }
                     else
                     {
