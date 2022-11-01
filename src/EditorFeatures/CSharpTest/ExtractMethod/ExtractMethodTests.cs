@@ -11327,5 +11327,49 @@ class C
 
             await TestExtractMethodAsync(code, expected);
         }
+
+        [Fact]
+        public async Task ExtractAsyncTuple()
+        {
+            var code = """
+                class C
+                {
+                    async Task DoSomethingAsync()
+                    {
+                        [|var something = await GetSomethingAsync();
+                        var somethingElse = 5;|]
+
+                        Console.WriteLine(something);
+                        Console.WriteLine(somethingElse);
+                    }
+
+                    async Task<string> GetSomethingAsync() => Task.FromResult("something");
+                }
+                """;
+
+            var expected = """
+                class C
+                {
+                    async Task DoSomethingAsync()
+                    {
+                        var (something, somethingElse) = await NewmethodAsync();
+
+                        Console.WriteLine(something);
+                        Console.WriteLine(somethingElse);
+                    }
+
+                    async Task<string> GetSomethingAsync() => Task.FromResult("something");
+
+                    async Task<(string, int)> NewMethodAsync()
+                    {
+                        var something = await GetSomethingAsync();
+                        var somethingElse = 5;
+                        return (something, somethingElse);
+                    }
+                }
+                """;
+
+            await TestExtractMethodAsync(code, expected);
+        }
     }
 }

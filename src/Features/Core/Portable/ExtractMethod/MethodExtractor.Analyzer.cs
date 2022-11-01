@@ -250,10 +250,24 @@ namespace Microsoft.CodeAnalysis.ExtractMethod
                 {
                     // no return statement
                     var parameters = MarkVariableInfoToUseAsReturnValueIfPossible(GetMethodParameters(variableInfoMap.Values));
-                    var variableToUseAsReturnValue = parameters.FirstOrDefault(v => v.UseAsReturnValue);
-                    var returnType = variableToUseAsReturnValue != null
-                        ? variableToUseAsReturnValue.GetVariableType(_semanticDocument)
-                        : compilation.GetSpecialType(SpecialType.System_Void);
+                    var returnVariablesCount = parameters.Count(v => v.UseAsReturnValue);
+
+                    ITypeSymbol? returnType = null;
+                    VariableInfo? variableToUseAsReturnValue = null;
+                    if (returnVariablesCount == 0)
+                    {
+                        returnType = compilation.GetSpecialType(SpecialType.System_Void);
+                    }
+                    else if (returnVariablesCount == parameters.Length)
+                    {
+                        compilation.GetTypeByMetadataName($"System.Tuple`{parameters.Length}");
+                    }
+                    else
+                    {
+                        variableToUseAsReturnValue = parameters.FirstOrDefault(v => v.UseAsReturnValue);
+                        returnType = variableToUseAsReturnValue?.GetVariableType(_semanticDocument)
+                            ?? compilation.GetSpecialType(SpecialType.System_Void);
+                    }
 
                     var unsafeAddressTakenUsed = ContainsVariableUnsafeAddressTaken(dataFlowAnalysisData, variableInfoMap.Keys);
                     return (parameters, returnType, variableToUseAsReturnValue, unsafeAddressTakenUsed);
@@ -387,10 +401,18 @@ namespace Microsoft.CodeAnalysis.ExtractMethod
             private ImmutableArray<VariableInfo> MarkVariableInfoToUseAsReturnValueIfPossible(ImmutableArray<VariableInfo> variableInfo)
             {
                 var index = GetIndexOfVariableInfoToUseAsReturnValue(variableInfo);
-                if (index < 0)
-                    return variableInfo;
+                if (index >= 0)
+                {
+                    return variableInfo.SetItem(index, VariableInfo.CreateReturnValue(variableInfo[index]));
+                }
 
-                return variableInfo.SetItem(index, VariableInfo.CreateReturnValue(variableInfo[index]));
+                // If all of the items can be used as return, we can return a tuple
+                if (variableInfo.All(v => v.CanBeUsedAsReturnValue))
+                {
+                    return variableInfo.SelectAsArray(v => VariableInfo.CreateReturnValue(v));
+                }
+
+                return variableInfo;
             }
 
             private ImmutableArray<VariableInfo> GetMethodParameters(ICollection<VariableInfo> variableInfo)
