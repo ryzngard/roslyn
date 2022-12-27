@@ -242,9 +242,9 @@ namespace Microsoft.CodeAnalysis.Rename.ConflictEngine
                         var definitionLocations = _renameLocationSet.Symbol.Locations;
                         var definitionDocuments = definitionLocations
                             .Select(l => conflictResolution.OldSolution.GetRequiredDocument(l.SourceTree!))
-                            .Distinct();
+                            .Distinct(DocumentPathEqualityComparer.Instance);
 
-                        if (definitionDocuments.Count() == 1)
+                        if (definitionDocuments.Distinct().Count() == 1)
                         {
                             // At the moment, only single document renaming is allowed
                             conflictResolution.RenameDocumentToMatchNewSymbol(definitionDocuments.Single());

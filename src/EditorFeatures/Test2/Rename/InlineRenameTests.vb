@@ -2102,5 +2102,29 @@ class [|C|]
             End Using
         End Function
 
+        <WpfTheory>
+        <CombinatorialData, Trait(Traits.Feature, Traits.Features.Rename)>
+        Public Async Function RenameFileMultiFramework(host As RenameTestHost) As Task
+            Using workspace = CreateWorkspaceWithWaiter(
+                    <Workspace>
+                        <Project Language="C#" CommonReferences="true" TargetFrameworks="netcoreapp3.1;netstandard2.0">
+                            <Document>
+                                class [|$$Test1|]
+                                {
+                                }
+                            </Document>
+                        </Project>
+                    </Workspace>, host)
+
+                Dim session = StartSession(workspace)
+
+                session.ApplyReplacementText("Example", True)
+                session.Commit()
+
+                Await VerifyTagsAreCorrect(workspace)
+                VerifyFileName(workspace, "Example")
+            End Using
+        End Function
+
     End Class
 End Namespace
