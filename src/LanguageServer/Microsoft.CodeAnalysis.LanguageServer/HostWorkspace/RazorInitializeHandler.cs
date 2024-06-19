@@ -27,7 +27,7 @@ internal class RazorInitializeHandler : ILspServiceNotificationHandler<object>
 
     Task INotificationHandler<object, RequestContext>.HandleNotificationAsync(object request, RequestContext requestContext, CancellationToken cancellationToken)
     {
-        _razorWorkspaceListenerInitializer.Value.Initialize();
+        _razorWorkspaceListenerInitializer.Value.Initialize(requestContext.GetRequiredLspService<IClientLanguageServerManager>());
 
         return Task.CompletedTask;
     }

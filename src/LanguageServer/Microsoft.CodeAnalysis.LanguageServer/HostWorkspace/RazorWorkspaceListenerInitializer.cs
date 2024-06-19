@@ -3,9 +3,12 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Composition;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Razor.ExternalAccess.RoslynWorkspace;
 using Microsoft.CodeAnalysis.Host.Mef;
+using Microsoft.CodeAnalysis.LanguageServer.Handler;
 using Microsoft.Extensions.Logging;
+using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.LanguageServer.HostWorkspace;
 
@@ -25,6 +28,7 @@ internal sealed class RazorWorkspaceListenerInitializer
     private HashSet<ProjectId> _projectIdWithDynamicFiles = [];
 
     private RazorWorkspaceListener? _razorWorkspaceListener;
+    private IClientLanguageServerManager? _clientLanguageServerManager;
 
     [ImportingConstructor]
     [Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
@@ -36,7 +40,7 @@ internal sealed class RazorWorkspaceListenerInitializer
         _loggerFactory = loggerFactory;
     }
 
-    internal void Initialize()
+    internal void Initialize(IClientLanguageServerManager clientLanguageServerManager)
     {
         HashSet<ProjectId> projectsToInitialize;
         lock (_initializeGate)
@@ -48,8 +52,9 @@ internal sealed class RazorWorkspaceListenerInitializer
             }
 
             _logger.LogTrace("Initializing the Razor workspace listener");
-            _razorWorkspaceListener = new RazorWorkspaceListener(_loggerFactory);
+            _razorWorkspaceListener = new RazorWorkspaceListener(_loggerFactory, NotifyMemoryMappedFileAsync);
             _razorWorkspaceListener.EnsureInitialized(_workspace, _projectRazorJsonFileName);
+            _clientLanguageServerManager = clientLanguageServerManager;
 
             projectsToInitialize = _projectIdWithDynamicFiles;
             // May as well clear out the collection, it will never get used again anyway.
@@ -80,5 +85,20 @@ internal sealed class RazorWorkspaceListenerInitializer
         // We've been initialized, so just pass the information along
         _logger.LogTrace("{projectId} forwarding on a dynamic file notification because we're initialized", projectId);
         _razorWorkspaceListener.NotifyDynamicFile(projectId);
+    }
+
+    private async Task NotifyMemoryMappedFileAsync(string fileName, CancellationToken cancellationToken)
+    {
+        RoslynDebug.AssertNotNull(_clientLanguageServerManager);
+
+        await _clientLanguageServerManager
+            .SendRequestAsync<ProjectInfoUpdatedParams>("razor/projectInfoUpdated", new() { FileName = fileName }, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    class ProjectInfoUpdatedParams
+    {
+        [JsonPropertyName("fileName")]
+        public string? FileName { get; set; }
     }
 }
